@@ -1,0 +1,188 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f7f7f5;
+  --card-bg: #ffffff;
+  --text: #1f2328;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #2563eb;
+  --accent-contrast: #ffffff;
+  --danger: #dc2626;
+  --pending: #9ca3af;
+  --researching: #d97706;
+  --drafted: #2563eb;
+  --done: #16a34a;
+  --archived: #6b7280;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181d;
+    --card-bg: #1f2228;
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --border: #33363d;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0 16px 48px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Hiragino Sans, "Noto Sans JP", sans-serif;
+}
+
+header {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 0 8px;
+}
+
+h1 { margin: 0 0 4px; font-size: 1.6rem; }
+.subtitle { color: var(--muted); margin: 0; font-size: 0.92rem; }
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+h2 { margin-top: 0; font-size: 1.1rem; }
+
+form { display: flex; flex-direction: column; gap: 12px; }
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.required { color: var(--danger); font-size: 0.75rem; }
+
+input, textarea, select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+.row label { flex: 1; min-width: 180px; }
+
+button {
+  align-self: flex-start;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+button:hover { opacity: 0.9; }
+button.secondary {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+button.danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.error { color: var(--danger); font-size: 0.85rem; }
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.filter-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.memo-list { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+
+.memo-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.memo-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.memo-title { font-weight: 600; margin: 0 0 4px; }
+.memo-brief { margin: 4px 0; color: var(--text); font-size: 0.92rem; white-space: pre-wrap; }
+.memo-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  color: #fff;
+}
+.badge.status-pending { background: var(--pending); }
+.badge.status-researching { background: var(--researching); }
+.badge.status-drafted { background: var(--drafted); }
+.badge.status-done { background: var(--done); }
+.badge.status-archived { background: var(--archived); }
+
+.badge.priority-high { background: var(--danger); }
+.badge.priority-normal { background: var(--muted); }
+.badge.priority-low { background: var(--border); color: var(--muted); }
+
+.tag {
+  font-size: 0.75rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.memo-notes { margin-top: 8px; font-size: 0.85rem; color: var(--muted); }
+
+.memo-outputs { margin-top: 8px; font-size: 0.82rem; }
+.memo-outputs a { color: var(--accent); margin-right: 10px; }
+
+.memo-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+.empty { color: var(--muted); text-align: center; padding: 24px 0; }

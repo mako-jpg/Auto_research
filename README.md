@@ -3,39 +3,35 @@
 リサーチしたいトピックをメモしておくと、Claude Code がサブエージェントを使って
 「リサーチ → Note記事の下書き → ショート動画の構成案」まで自動生成してくれる仕組みです。
 
-詳しい構成は [`CLAUDE.md`](./CLAUDE.md) を参照してください。
+詳しい構成は [`CLAUDE.md`](./CLAUDE.md)、デプロイ情報は [`docs/deployment.md`](./docs/deployment.md) を参照してください。
 
 ## クイックスタート
 
-### 1. メモアプリを起動
+### 1. デプロイ済みのメモアプリを開く
 
-```bash
-cd memo-app
-pip install -r requirements.txt
-python app.py
-```
+`docs/deployment.md` に記載の本番URLを開き、メールアドレス・パスワードでログインして、
+リサーチしてほしいトピックをメモとして追加します（`memo-app/` はVercelにデプロイして使う前提のアプリです）。
 
-`http://localhost:5050` を開いて、リサーチしてほしいトピックをメモとして追加します。
+### 2. パイプラインを実行
 
-### 2. メモをコミット・push
+Claude Code で `/research-pipeline` を実行すると、メモアプリのAPIから `pending` 状態のメモ
+（最大3件）を取得し、リサーチ → 記事下書き → ショート動画構成の順に処理して、`output/<slug>/`
+に保存し、メモのステータスを更新します。6時間おきのRoutineが自動実行する設定になっています。
 
-```bash
-git add memo-app/data/memos.json
-git commit -m "Add memo: ..."
-git push
-```
-
-### 3. パイプラインを実行
-
-Claude Code で `/research-pipeline` を実行すると、`pending` 状態のメモ（最大3件）を
-リサーチ → 記事下書き → ショート動画構成の順に処理し、`output/<slug>/` に保存します。
-定期的に自動実行したい場合は Routine（スケジュールトリガー）として設定できます。
-
-### 4. 成果物を確認
+### 3. 成果物を確認
 
 - `output/<slug>/research.md` — リサーチブリーフ（出典付き）
 - `output/<slug>/article.md` — Note記事の下書き
 - `output/<slug>/video-structure.md` — ショート動画の構成・台本
 
-いずれも **下書き** です。公開前に必ず内容を確認してください。
-メモアプリの一覧画面からも各成果物へのリンクを開けます。
+いずれも **下書き** です。公開前に必ず内容を確認してください。生成後はこのリポジトリにコミットされます。
+
+## メモアプリをローカルで動かす場合
+
+```bash
+cd memo-app
+npm install
+npx vercel link      # 初回のみ: このVercelプロジェクトと紐付け
+npx vercel env pull  # 環境変数をローカルに取得
+npx vercel dev
+```

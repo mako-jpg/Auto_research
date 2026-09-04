@@ -1,0 +1,10 @@
+{
+  "name": "auto-research-memo-app",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Research memo web app (Vercel Serverless Functions + Vercel Blob storage) for the Auto_research pipeline.",
+  "dependencies": {
+    "@vercel/blob": "^2.8.0"
+  }
+}

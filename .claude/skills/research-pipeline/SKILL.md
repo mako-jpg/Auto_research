@@ -1,16 +1,29 @@
 ---
 name: research-pipeline
-description: Reads pending entries from the memo app (memo-app/data/memos.json), and for each one runs the researcher → article-writer → video-composer subagent pipeline, saving a research brief, a Note article draft, and a short-video structure under output/, then updates the memo's status and commits the results. Use when asked to process memos, run the research pipeline, or when a scheduled routine fires to check for new memo entries.
+description: Fetches pending entries from the deployed memo app's API (memo-app, hosted on Vercel), and for each one runs the researcher → article-writer → video-composer subagent pipeline, saving a research brief, a Note article draft, and a short-video structure under output/, then updates the memo's status via the API and commits the generated files. Use when asked to process memos, run the research pipeline, or when a scheduled routine fires to check for new memo entries.
 ---
 
 # Research → Note記事 → ショート動画構成 パイプライン
 
-このスキルは、`memo-app/` で管理しているメモ（ユーザーがリサーチしてほしいトピックを書き留めたもの）を読み取り、サブエージェント（`researcher` → `article-writer` → `video-composer`）を順番に使って、リサーチ→Note記事下書き→ショート動画構成案を自動生成します。
+このスキルは、Vercelにデプロイ済みのメモアプリ（`memo-app/`）のAPIから、ユーザーがリサーチしてほしいトピックとして書き留めたメモを取得し、サブエージェント（`researcher` → `article-writer` → `video-composer`）を順番に使って、リサーチ→Note記事下書き→ショート動画構成案を自動生成します。
+
+メモ本体（`memos.json`）はこのリポジトリのgit管理下にはなく、Vercel Blob上にあります。読み書きは必ずデプロイ済みAPI経由で行います。
+
+## 前提: 本番URLとトークン
+
+- 本番URL: `docs/deployment.md` に記載（例: `https://auto-research-memo-app.vercel.app`）
+- 認証: `Authorization: Bearer <PIPELINE_TOKEN>` ヘッダをすべてのAPIリクエストに付与する。トークンの値はセッション開始時の指示、またはRoutineのプロンプトに含まれている。含まれていない/失効している場合はユーザーに確認する。
+- API:
+  - `GET /api/memos` — 全メモの一覧を取得
+  - `PUT /api/memos/<id>` — 指定メモを部分更新（`status` / `outputs` など）
 
 ## 手順
 
-1. `git pull` して最新のメモ（他の場所で追加された分も含む）を取得する。
-2. `memo-app/data/memos.json` を Read で読み込む。ファイルが存在しない、または `memos` が空なら、その旨を報告して終了する。
+1. `docs/deployment.md` を Read で読み、本番URLを確認する。
+2. Bash（curl）で `GET {本番URL}/api/memos` を叩き、メモ一覧を取得する。例:
+   ```bash
+   curl -s -H "Authorization: Bearer $PIPELINE_TOKEN" "$BASE_URL/api/memos"
+   ```
 3. `status` が `"pending"` のメモを抽出する。1回の実行で処理するのは **最大3件** まで（暴走・コスト膨張防止）。`priority: "high"` を優先し、次に `created_at` が古い順。
 4. 処理対象がなければ、その旨を短く報告して終了する（無理に何かを作らない）。
 5. 各対象メモについて、以下を順に行う。
@@ -23,13 +36,15 @@ description: Reads pending entries from the memo app (memo-app/data/memos.json),
       2. **article-writer** エージェント — 上記 research brief の内容とメモの `title` / `brief` / `notes` を渡し、`output/<slug>/article.md` に記事下書きを書かせる。
       3. **video-composer** エージェント — 上記 article（取得できなければ research brief）の内容を渡し、`output/<slug>/video-structure.md` にショート動画構成を書かせる。
 
-   c. `memo-app/data/memos.json` を更新する:
-      - 該当メモの `status` を `"drafted"` にする
-      - `outputs` を `{"research": "<slug>/research.md", "article": "<slug>/article.md", "video": "<slug>/video-structure.md"}` にする（`output/` プレフィックスなし。memo-app の UI がこの形式でリンクを組み立てる）
-      - `updated_at` を現在時刻（ISO8601, UTC）に更新する
-      - 他のメモのフィールドは一切変更しない。JSON 全体を正しく整形して書き戻すこと。
+   c. 処理が終わったら、`PUT {本番URL}/api/memos/<id>` を叩いてメモを更新する:
+      ```bash
+      curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: application/json" \
+        -d '{"status":"drafted","outputs":{"research":"<slug>/research.md","article":"<slug>/article.md","video":"<slug>/video-structure.md"}}' \
+        "$BASE_URL/api/memos/<id>"
+      ```
+      （`outputs` の値は `output/` プレフィックスなしの相対パス）
 
-6. すべて処理し終えたら、変更（`output/` 配下の新規ファイルと `memo-app/data/memos.json`）を git add / commit し、このセッションの指定ブランチに push する。
+6. すべて処理し終えたら、`output/` 配下の新規ファイルを git add / commit し、このセッションの指定ブランチに push する（`memos.json` はAPI経由で既に更新済みなのでコミット対象ではない）。
 
 7. 最後に日本語で簡潔に報告する: 処理したメモのタイトル一覧、それぞれの3つの出力ファイルへのパス、そして必ず「これは下書きです。公開前に内容を確認してください」と伝える。
 
@@ -38,4 +53,5 @@ description: Reads pending entries from the memo app (memo-app/data/memos.json),
 - 記事やショート動画構成を **自動で Note や SNS に投稿・公開しない**。あくまで下書き生成と保存まで。
 - サブエージェントが生成した内容に明らかな誤りや根拠のない主張がないか、コミット前に軽く目を通す。事実関係が怪しい場合は報告に明記する。
 - 1回の実行で処理件数を3件に絞っているのは、無制限にリサーチ・記事生成が走ってコスト・時間が膨らむのを防ぐため。ユーザーから明示的に「全部処理して」「もっと処理して」と言われた場合はその指示に従ってよい。
-- Routine（定期実行）から呼ばれる場合、会話の文脈は無いことがある。このファイルと `CLAUDE.md` だけを頼りに独立して完結できるようにすること。
+- APIが401を返す場合、`PIPELINE_TOKEN` が間違っているか失効している。推測で再試行せず、ユーザーに報告する。
+- Routine（定期実行）から呼ばれる場合、会話の文脈は無いことがある。このファイルと `CLAUDE.md` / `docs/deployment.md` だけを頼りに独立して完結できるようにすること。

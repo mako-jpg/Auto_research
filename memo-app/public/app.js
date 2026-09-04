@@ -6,17 +6,29 @@ const STATUS_LABELS = {
   archived: "アーカイブ",
 };
 
+const OUTPUT_LABELS = { research: "リサーチ", article: "記事下書き", video: "動画構成" };
+
 const memoList = document.getElementById("memo-list");
 const emptyState = document.getElementById("empty-state");
 const form = document.getElementById("memo-form");
 const formError = document.getElementById("form-error");
 const statusFilters = document.getElementById("status-filters");
+const logoutBtn = document.getElementById("logout-btn");
 
 let memos = [];
 let activeFilter = "all";
 
+async function api(path, options = {}) {
+  const res = await fetch(path, { ...options, credentials: "same-origin" });
+  if (res.status === 401) {
+    window.location.href = "/login.html";
+    throw new Error("unauthorized");
+  }
+  return res;
+}
+
 async function fetchMemos() {
-  const res = await fetch("/api/memos");
+  const res = await api("/api/memos");
   memos = await res.json();
   renderFilters();
   render();
@@ -103,17 +115,12 @@ function renderMemoItem(memo) {
   }
 
   if (memo.outputs && Object.keys(memo.outputs).length > 0) {
-    const outputs = document.createElement("div");
+    const outputs = document.createElement("p");
     outputs.className = "memo-outputs";
-    const labelMap = { research: "リサーチ", article: "記事下書き", video: "動画構成" };
-    for (const [key, path] of Object.entries(memo.outputs)) {
-      const a = document.createElement("a");
-      a.href = `/output-file/${path}`;
-      a.target = "_blank";
-      a.rel = "noopener";
-      a.textContent = labelMap[key] || key;
-      outputs.appendChild(a);
-    }
+    const parts = Object.entries(memo.outputs).map(
+      ([key, path]) => `${OUTPUT_LABELS[key] || key}: output/${path}`
+    );
+    outputs.textContent = `生成物（リポジトリ内）: ${parts.join(" / ")}`;
     li.appendChild(outputs);
   }
 
@@ -142,7 +149,7 @@ function renderMemoItem(memo) {
 }
 
 async function updateMemo(id, patch) {
-  await fetch(`/api/memos/${id}`, {
+  await api(`/api/memos/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
@@ -152,7 +159,7 @@ async function updateMemo(id, patch) {
 
 async function deleteMemo(id) {
   if (!confirm("このメモを削除しますか？")) return;
-  await fetch(`/api/memos/${id}`, { method: "DELETE" });
+  await api(`/api/memos/${id}`, { method: "DELETE" });
   await fetchMemos();
 }
 
@@ -168,7 +175,7 @@ form.addEventListener("submit", async (e) => {
     notes: document.getElementById("notes").value,
   };
 
-  const res = await fetch("/api/memos", {
+  const res = await api("/api/memos", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -184,6 +191,11 @@ form.addEventListener("submit", async (e) => {
   form.reset();
   document.getElementById("priority").value = "normal";
   await fetchMemos();
+});
+
+logoutBtn.addEventListener("click", async () => {
+  await fetch("/api/logout", { method: "POST" });
+  window.location.href = "/login.html";
 });
 
 fetchMemos();

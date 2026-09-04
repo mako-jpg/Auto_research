@@ -4,12 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>リサーチメモ</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <header>
-    <h1>リサーチメモ</h1>
-    <p class="subtitle">リサーチしてほしいトピックを書き留めておくと、Claude Code が定期的に読み取って記事下書き・ショート動画構成まで作ります。</p>
+    <div class="header-row">
+      <div>
+        <h1>リサーチメモ</h1>
+        <p class="subtitle">リサーチしてほしいトピックを書き留めておくと、Claude Code が定期的に読み取って記事下書き・ショート動画構成まで作ります。</p>
+      </div>
+      <button id="logout-btn" class="secondary">ログアウト</button>
+    </div>
   </header>
 
   <main>
@@ -57,6 +62,6 @@
     </section>
   </main>
 
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="/app.js"></script>
 </body>
 </html>

@@ -41,8 +41,24 @@ header {
   padding: 32px 0 8px;
 }
 
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 h1 { margin: 0 0 4px; font-size: 1.6rem; }
 .subtitle { color: var(--muted); margin: 0; font-size: 0.92rem; }
+
+.login-main {
+  max-width: 380px;
+  margin: 15vh auto 0;
+  padding: 0 16px;
+}
+.login-card { text-align: left; }
+.login-card h1 { margin-bottom: 4px; }
+.login-card form { margin-top: 16px; }
 
 main {
   max-width: 720px;

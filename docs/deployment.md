@@ -4,8 +4,10 @@
 
 ## デプロイ先
 
-- Vercelプロジェクト: （デプロイ後に追記）
-- 本番URL: （デプロイ後に追記）
+- Vercelプロジェクト: `auto-research-memo-app`（チーム: `mako-jpgs-projects`）
+- 本番URL: https://auto-research-memo-app.vercel.app
+- ルートディレクトリ: `memo-app`（モノレポ設定）
+- Production branch: `claude/research-article-automation-u3efhq`（このブランチにpushすると自動デプロイされる）
 
 ## 必要な環境変数（Vercel Project Settings → Environment Variables）
 

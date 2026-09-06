@@ -9,6 +9,22 @@ const STATUS_LABELS = {
 const OUTPUT_LABELS = { research: "リサーチ", article: "記事下書き", video: "動画構成" };
 const DEFAULT_PRIORITY = 3;
 
+const STATUS_TAG_COLORS = {
+  pending: "gray",
+  researching: "yellow",
+  drafted: "blue",
+  done: "green",
+  archived: "brown",
+};
+const PRIORITY_TAG_COLORS = { 1: "gray", 2: "gray", 3: "blue", 4: "orange", 5: "red" };
+const CATEGORY_TAG_COLORS = ["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red"];
+
+function categoryTagColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  return CATEGORY_TAG_COLORS[Math.abs(hash) % CATEGORY_TAG_COLORS.length];
+}
+
 const memoList = document.getElementById("memo-list");
 const emptyState = document.getElementById("empty-state");
 const form = document.getElementById("memo-form");
@@ -107,12 +123,12 @@ function renderResearchCard(memo) {
   const meta = document.createElement("div");
   meta.className = "memo-meta";
   const statusBadge = document.createElement("span");
-  statusBadge.className = `badge status-${memo.status}`;
+  statusBadge.className = `badge tag-${STATUS_TAG_COLORS[memo.status] || "gray"}`;
   statusBadge.textContent = STATUS_LABELS[memo.status] || memo.status;
   meta.appendChild(statusBadge);
   for (const category of memo.categories || []) {
     const categoryEl = document.createElement("span");
-    categoryEl.className = "tag";
+    categoryEl.className = `tag tag-${categoryTagColor(category)}`;
     categoryEl.textContent = category;
     meta.appendChild(categoryEl);
   }
@@ -156,10 +172,16 @@ function renderPriorityPicker() {
 function renderCategoryPicker() {
   categoryPicker.innerHTML = "";
   for (const name of categories) {
+    const isActive = formCategories.has(name);
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "category-btn" + (formCategories.has(name) ? " active" : "");
+    btn.className = "category-btn" + (isActive ? " active" : "");
     btn.textContent = name;
+    if (isActive) {
+      const color = categoryTagColor(name);
+      btn.style.background = `var(--tag-${color}-bg)`;
+      btn.style.color = `var(--tag-${color}-fg)`;
+    }
     btn.addEventListener("click", () => {
       if (formCategories.has(name)) {
         formCategories.delete(name);
@@ -236,18 +258,18 @@ function renderMemoItem(memo) {
   badges.className = "memo-meta";
 
   const statusBadge = document.createElement("span");
-  statusBadge.className = `badge status-${memo.status}`;
+  statusBadge.className = `badge tag-${STATUS_TAG_COLORS[memo.status] || "gray"}`;
   statusBadge.textContent = STATUS_LABELS[memo.status] || memo.status;
   badges.appendChild(statusBadge);
 
   const priorityBadge = document.createElement("span");
-  priorityBadge.className = "badge priority-badge";
+  priorityBadge.className = `badge tag-${PRIORITY_TAG_COLORS[memo.priority] || "gray"}`;
   priorityBadge.textContent = `優先度 ${memo.priority}`;
   badges.appendChild(priorityBadge);
 
   for (const category of memo.categories || []) {
     const categoryEl = document.createElement("span");
-    categoryEl.className = "tag";
+    categoryEl.className = `tag tag-${categoryTagColor(category)}`;
     categoryEl.textContent = category;
     badges.appendChild(categoryEl);
   }

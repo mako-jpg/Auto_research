@@ -22,6 +22,9 @@ const modalClose = document.getElementById("modal-close");
 const priorityPicker = document.getElementById("priority-picker");
 const categoryPicker = document.getElementById("category-picker");
 const addCategoryBtn = document.getElementById("add-category-btn");
+const pageTabs = document.getElementById("page-tabs");
+const researchGrid = document.getElementById("research-grid");
+const researchEmpty = document.getElementById("research-empty");
 
 let memos = [];
 let categories = [];
@@ -63,6 +66,70 @@ async function fetchMemos() {
   memos = await res.json();
   renderFilters();
   render();
+  renderResearchGrid();
+}
+
+pageTabs.addEventListener("click", (e) => {
+  const btn = e.target.closest(".tab-btn");
+  if (!btn) return;
+
+  for (const tab of pageTabs.querySelectorAll(".tab-btn")) {
+    tab.classList.toggle("active", tab === btn);
+  }
+  document.getElementById("page-memo").hidden = btn.dataset.page !== "memo";
+  document.getElementById("page-research").hidden = btn.dataset.page !== "research";
+});
+
+function renderResearchGrid() {
+  const withOutputs = memos.filter((m) => Object.values(m.outputs || {}).some(Boolean));
+  researchGrid.innerHTML = "";
+  researchEmpty.hidden = withOutputs.length > 0;
+
+  for (const memo of withOutputs) {
+    researchGrid.appendChild(renderResearchCard(memo));
+  }
+}
+
+function renderResearchCard(memo) {
+  const card = document.createElement("article");
+  card.className = "research-card";
+
+  const title = document.createElement("h3");
+  title.className = "research-card-title";
+  title.textContent = memo.title;
+  card.appendChild(title);
+
+  const excerpt = document.createElement("p");
+  excerpt.className = "research-card-excerpt";
+  excerpt.textContent = memo.brief;
+  card.appendChild(excerpt);
+
+  const meta = document.createElement("div");
+  meta.className = "memo-meta";
+  const statusBadge = document.createElement("span");
+  statusBadge.className = `badge status-${memo.status}`;
+  statusBadge.textContent = STATUS_LABELS[memo.status] || memo.status;
+  meta.appendChild(statusBadge);
+  for (const category of memo.categories || []) {
+    const categoryEl = document.createElement("span");
+    categoryEl.className = "tag";
+    categoryEl.textContent = category;
+    meta.appendChild(categoryEl);
+  }
+  card.appendChild(meta);
+
+  const outputs = document.createElement("div");
+  outputs.className = "memo-outputs";
+  for (const key of Object.keys(memo.outputs || {}).filter((k) => memo.outputs[k])) {
+    const btn = document.createElement("button");
+    btn.className = "output-btn";
+    btn.textContent = OUTPUT_LABELS[key] || key;
+    btn.addEventListener("click", () => openOutput(memo, key));
+    outputs.appendChild(btn);
+  }
+  card.appendChild(outputs);
+
+  return card;
 }
 
 async function fetchCategories() {

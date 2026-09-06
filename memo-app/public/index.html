@@ -9,47 +9,59 @@
 <body>
   <header>
     <div class="header-row">
-      <div>
-        <h1>リサーチメモ</h1>
-      </div>
+      <h1>リサーチメモ</h1>
       <button id="logout-btn" class="secondary">ログアウト</button>
     </div>
+    <nav class="tabs" id="page-tabs">
+      <button type="button" class="tab-btn active" data-page="memo">メモ</button>
+      <button type="button" class="tab-btn" data-page="research">リサーチ</button>
+    </nav>
   </header>
 
   <main>
-    <section class="card">
-      <h2>新しいメモを追加</h2>
-      <form id="memo-form">
-        <label>
-          タイトル <span class="required">必須</span>
-          <input type="text" id="title" name="title" placeholder="例: 生成AIの著作権問題まとめ" required>
-        </label>
-        <label>
-          リサーチしてほしい内容 <span class="required">必須</span>
-          <textarea id="brief" name="brief" rows="4" placeholder="何を、どんな角度で調べて記事にしてほしいか書く"></textarea>
-        </label>
-        <div class="field-block">
-          <span class="field-label">優先度</span>
-          <div class="priority-picker" id="priority-picker"></div>
-        </div>
-        <div class="field-block">
-          <span class="field-label">カテゴリ</span>
-          <div class="category-picker" id="category-picker"></div>
-          <button type="button" id="add-category-btn" class="secondary">+ カテゴリ追加</button>
-        </div>
-        <button type="submit">メモを追加</button>
-      </form>
-      <p id="form-error" class="error" hidden></p>
-    </section>
+    <div id="page-memo" class="page">
+      <section class="card">
+        <h2>新しいメモを追加</h2>
+        <form id="memo-form">
+          <label>
+            タイトル <span class="required">必須</span>
+            <input type="text" id="title" name="title" placeholder="例: 生成AIの著作権問題まとめ" required>
+          </label>
+          <label>
+            リサーチしてほしい内容 <span class="required">必須</span>
+            <textarea id="brief" name="brief" rows="8" placeholder="何を、どんな角度で調べて記事にしてほしいか書く"></textarea>
+          </label>
+          <div class="field-block">
+            <span class="field-label">優先度</span>
+            <div class="priority-picker" id="priority-picker"></div>
+          </div>
+          <div class="field-block">
+            <span class="field-label">カテゴリ</span>
+            <div class="category-picker" id="category-picker"></div>
+            <button type="button" id="add-category-btn" class="secondary">+ カテゴリ追加</button>
+          </div>
+          <button type="submit">メモを追加</button>
+        </form>
+        <p id="form-error" class="error" hidden></p>
+      </section>
 
-    <section class="card">
-      <div class="list-header">
-        <h2>メモ一覧</h2>
-        <div class="filters" id="status-filters"></div>
-      </div>
-      <ul id="memo-list" class="memo-list"></ul>
-      <p id="empty-state" class="empty" hidden>まだメモがありません。上のフォームから追加してください。</p>
-    </section>
+      <section class="card">
+        <div class="list-header">
+          <h2>メモ一覧</h2>
+          <div class="filters" id="status-filters"></div>
+        </div>
+        <ul id="memo-list" class="memo-list"></ul>
+        <p id="empty-state" class="empty" hidden>まだメモがありません。上のフォームから追加してください。</p>
+      </section>
+    </div>
+
+    <div id="page-research" class="page" hidden>
+      <section class="card">
+        <h2>リサーチ結果</h2>
+        <div class="research-grid" id="research-grid"></div>
+        <p id="research-empty" class="empty" hidden>まだ生成物がありません。メモが処理されるとここに表示されます。</p>
+      </section>
+    </div>
   </main>
 
   <div id="output-modal" class="modal" hidden>

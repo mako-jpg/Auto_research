@@ -157,10 +157,12 @@ async function fetchCategories() {
 function renderPriorityPicker() {
   priorityPicker.innerHTML = "";
   for (let level = 1; level <= 5; level++) {
+    const isActive = level === formPriority;
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "priority-btn" + (level === formPriority ? " active" : "");
-    btn.textContent = String(level);
+    btn.className = "priority-dot" + (isActive ? " active" : "");
+    btn.setAttribute("aria-label", `優先度 ${level}`);
+    if (isActive) btn.textContent = String(level);
     btn.addEventListener("click", () => {
       formPriority = level;
       renderPriorityPicker();
@@ -173,15 +175,17 @@ function renderCategoryPicker() {
   categoryPicker.innerHTML = "";
   for (const name of categories) {
     const isActive = formCategories.has(name);
+    const color = categoryTagColor(name);
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "category-btn" + (isActive ? " active" : "");
-    btn.textContent = name;
-    if (isActive) {
-      const color = categoryTagColor(name);
-      btn.style.background = `var(--tag-${color}-bg)`;
-      btn.style.color = `var(--tag-${color}-fg)`;
-    }
+
+    const dot = document.createElement("span");
+    dot.className = "category-dot";
+    dot.style.background = `var(--tag-${color}-fg)`;
+    btn.appendChild(dot);
+    btn.appendChild(document.createTextNode(name));
+
     btn.addEventListener("click", () => {
       if (formCategories.has(name)) {
         formCategories.delete(name);

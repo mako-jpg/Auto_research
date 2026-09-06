@@ -14,9 +14,33 @@ const form = document.getElementById("memo-form");
 const formError = document.getElementById("form-error");
 const statusFilters = document.getElementById("status-filters");
 const logoutBtn = document.getElementById("logout-btn");
+const outputModal = document.getElementById("output-modal");
+const modalTitle = document.getElementById("modal-title");
+const modalBody = document.getElementById("modal-body");
+const modalClose = document.getElementById("modal-close");
 
 let memos = [];
 let activeFilter = "all";
+
+async function openOutput(memo, type) {
+  modalTitle.textContent = `${memo.title} — ${OUTPUT_LABELS[type] || type}`;
+  modalBody.textContent = "読み込み中…";
+  outputModal.hidden = false;
+
+  try {
+    const res = await api(`/api/memos/${memo.id}/outputs/${type}`);
+    modalBody.textContent = res.ok ? await res.text() : "まだ生成されていません。";
+  } catch {
+    modalBody.textContent = "読み込みに失敗しました。";
+  }
+}
+
+modalClose.addEventListener("click", () => {
+  outputModal.hidden = true;
+});
+outputModal.addEventListener("click", (e) => {
+  if (e.target === outputModal) outputModal.hidden = true;
+});
 
 async function api(path, options = {}) {
   const res = await fetch(path, { ...options, credentials: "same-origin" });
@@ -114,13 +138,17 @@ function renderMemoItem(memo) {
     li.appendChild(notes);
   }
 
-  if (memo.outputs && Object.keys(memo.outputs).length > 0) {
-    const outputs = document.createElement("p");
+  const availableOutputs = Object.keys(memo.outputs || {}).filter((key) => memo.outputs[key]);
+  if (availableOutputs.length > 0) {
+    const outputs = document.createElement("div");
     outputs.className = "memo-outputs";
-    const parts = Object.entries(memo.outputs).map(
-      ([key, path]) => `${OUTPUT_LABELS[key] || key}: output/${path}`
-    );
-    outputs.textContent = `生成物（リポジトリ内）: ${parts.join(" / ")}`;
+    for (const key of availableOutputs) {
+      const btn = document.createElement("button");
+      btn.className = "output-btn";
+      btn.textContent = OUTPUT_LABELS[key] || key;
+      btn.addEventListener("click", () => openOutput(memo, key));
+      outputs.appendChild(btn);
+    }
     li.appendChild(outputs);
   }
 

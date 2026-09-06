@@ -16,6 +16,7 @@ description: Fetches pending entries from the deployed memo app's API (memo-app,
 - API:
   - `GET /api/memos` — 全メモの一覧を取得
   - `PUT /api/memos/<id>` — 指定メモを部分更新（`status` / `outputs` など）
+  - `PUT /api/memos/<id>/outputs/<type>` — 生成物の本文（Markdown）をアップロードする（`type` は `research` / `article` / `video`）。body に生ファイル内容をそのまま送る。メモアプリのWeb UIはこれを読んでその場で表示する。
 
 ## 手順
 
@@ -36,15 +37,25 @@ description: Fetches pending entries from the deployed memo app's API (memo-app,
       2. **article-writer** エージェント — 上記 research brief の内容とメモの `title` / `brief` / `notes` を渡し、`output/<slug>/article.md` に記事下書きを書かせる。
       3. **video-composer** エージェント — 上記 article（取得できなければ research brief）の内容を渡し、`output/<slug>/video-structure.md` にショート動画構成を書かせる。
 
-   c. 処理が終わったら、`PUT {本番URL}/api/memos/<id>` を叩いてメモを更新する:
+   c. 生成した3ファイルの中身を、それぞれメモアプリにアップロードする（メモアプリのWeb UIから直接読めるようにするため）:
+      ```bash
+      curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: text/markdown" \
+        --data-binary @output/<slug>/research.md "$BASE_URL/api/memos/<id>/outputs/research"
+      curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: text/markdown" \
+        --data-binary @output/<slug>/article.md "$BASE_URL/api/memos/<id>/outputs/article"
+      curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: text/markdown" \
+        --data-binary @output/<slug>/video-structure.md "$BASE_URL/api/memos/<id>/outputs/video"
+      ```
+
+   d. アップロードが終わったら、`PUT {本番URL}/api/memos/<id>` を叩いてメモの状態を更新する:
       ```bash
       curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: application/json" \
-        -d '{"status":"drafted","outputs":{"research":"<slug>/research.md","article":"<slug>/article.md","video":"<slug>/video-structure.md"}}' \
+        -d '{"status":"drafted","outputs":{"research":true,"article":true,"video":true}}' \
         "$BASE_URL/api/memos/<id>"
       ```
-      （`outputs` の値は `output/` プレフィックスなしの相対パス）
+      （`outputs` の値は真偽値。アップロードに成功した種類だけ `true` にする。Web UIはこのキーの有無で「見る」ボタンの表示を判断する）
 
-6. すべて処理し終えたら、`output/` 配下の新規ファイルを git add / commit し、このセッションの指定ブランチに push する（`memos.json` はAPI経由で既に更新済みなのでコミット対象ではない）。
+6. すべて処理し終えたら、`output/` 配下の新規ファイルを git add / commit し、このセッションの指定ブランチに push する（リポジトリ内にも下書きの記録を残すため。`memos.json` はAPI経由で既に更新済みなのでコミット対象ではない）。
 
 7. 最後に日本語で簡潔に報告する: 処理したメモのタイトル一覧、それぞれの3つの出力ファイルへのパス、そして必ず「これは下書きです。公開前に内容を確認してください」と伝える。
 

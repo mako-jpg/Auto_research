@@ -8,6 +8,7 @@ const STATUS_LABELS = {
 
 const OUTPUT_LABELS = { research: "リサーチ", article: "記事下書き", video: "動画構成" };
 const DEFAULT_PRIORITY = 3;
+const FILTER_STATUSES = ["pending", "researching", "done"];
 
 const STATUS_TAG_COLORS = {
   pending: "gray",
@@ -42,11 +43,33 @@ const pageTabs = document.getElementById("page-tabs");
 const researchGrid = document.getElementById("research-grid");
 const researchEmpty = document.getElementById("research-empty");
 
+const memoModal = document.getElementById("memo-modal");
+const memoModalTitle = document.getElementById("memo-modal-title");
+const memoModalClose = document.getElementById("memo-modal-close");
+const memoView = document.getElementById("memo-view");
+const memoViewBadges = document.getElementById("memo-view-badges");
+const memoViewBrief = document.getElementById("memo-view-brief");
+const memoViewOutputs = document.getElementById("memo-view-outputs");
+const memoViewStatus = document.getElementById("memo-view-status");
+const memoEditBtn = document.getElementById("memo-edit-btn");
+const memoDeleteBtn = document.getElementById("memo-delete-btn");
+const memoEditForm = document.getElementById("memo-edit-form");
+const memoEditCancel = document.getElementById("memo-edit-cancel");
+const editTitle = document.getElementById("edit-title");
+const editBrief = document.getElementById("edit-brief");
+const editPriorityPicker = document.getElementById("edit-priority-picker");
+const editCategoryPicker = document.getElementById("edit-category-picker");
+const editError = document.getElementById("edit-error");
+
 let memos = [];
 let categories = [];
 let activeFilter = "all";
 let formPriority = DEFAULT_PRIORITY;
 let formCategories = new Set();
+
+let currentMemoId = null;
+let editPriorityValue = DEFAULT_PRIORITY;
+let editCategoriesValue = new Set();
 
 async function api(path, options = {}) {
   const res = await fetch(path, { ...options, credentials: "same-origin" });
@@ -154,27 +177,24 @@ async function fetchCategories() {
   renderCategoryPicker();
 }
 
-function renderPriorityPicker() {
-  priorityPicker.innerHTML = "";
+function renderPriorityDots(container, selectedLevel, onSelect) {
+  container.innerHTML = "";
   for (let level = 1; level <= 5; level++) {
-    const isActive = level === formPriority;
+    const isActive = level === selectedLevel;
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "priority-dot" + (isActive ? " active" : "");
     btn.setAttribute("aria-label", `優先度 ${level}`);
     if (isActive) btn.textContent = String(level);
-    btn.addEventListener("click", () => {
-      formPriority = level;
-      renderPriorityPicker();
-    });
-    priorityPicker.appendChild(btn);
+    btn.addEventListener("click", () => onSelect(level));
+    container.appendChild(btn);
   }
 }
 
-function renderCategoryPicker() {
-  categoryPicker.innerHTML = "";
+function renderCategoryChips(container, selectedSet, onToggle) {
+  container.innerHTML = "";
   for (const name of categories) {
-    const isActive = formCategories.has(name);
+    const isActive = selectedSet.has(name);
     const color = categoryTagColor(name);
     const btn = document.createElement("button");
     btn.type = "button";
@@ -186,16 +206,39 @@ function renderCategoryPicker() {
     btn.appendChild(dot);
     btn.appendChild(document.createTextNode(name));
 
-    btn.addEventListener("click", () => {
-      if (formCategories.has(name)) {
-        formCategories.delete(name);
-      } else {
-        formCategories.add(name);
-      }
-      renderCategoryPicker();
-    });
-    categoryPicker.appendChild(btn);
+    btn.addEventListener("click", () => onToggle(name));
+    container.appendChild(btn);
   }
+}
+
+function renderPriorityPicker() {
+  renderPriorityDots(priorityPicker, formPriority, (level) => {
+    formPriority = level;
+    renderPriorityPicker();
+  });
+}
+
+function renderCategoryPicker() {
+  renderCategoryChips(categoryPicker, formCategories, (name) => {
+    if (formCategories.has(name)) formCategories.delete(name);
+    else formCategories.add(name);
+    renderCategoryPicker();
+  });
+}
+
+function renderEditPriorityPicker() {
+  renderPriorityDots(editPriorityPicker, editPriorityValue, (level) => {
+    editPriorityValue = level;
+    renderEditPriorityPicker();
+  });
+}
+
+function renderEditCategoryPicker() {
+  renderCategoryChips(editCategoryPicker, editCategoriesValue, (name) => {
+    if (editCategoriesValue.has(name)) editCategoriesValue.delete(name);
+    else editCategoriesValue.add(name);
+    renderEditCategoryPicker();
+  });
 }
 
 addCategoryBtn.addEventListener("click", async () => {
@@ -219,7 +262,7 @@ function renderFilters() {
   const counts = { all: memos.length };
   for (const m of memos) counts[m.status] = (counts[m.status] || 0) + 1;
 
-  const options = [["all", "すべて"], ...Object.entries(STATUS_LABELS)];
+  const options = [["all", "すべて"], ...FILTER_STATUSES.map((s) => [s, STATUS_LABELS[s]])];
   statusFilters.innerHTML = "";
   for (const [key, label] of options) {
     const count = counts[key] || 0;
@@ -249,82 +292,137 @@ function renderMemoItem(memo) {
   const li = document.createElement("li");
   li.className = "memo-item";
 
-  const head = document.createElement("div");
-  head.className = "memo-item-head";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "memo-title-btn";
+  btn.textContent = memo.title;
+  btn.addEventListener("click", () => openMemoDetail(memo.id));
 
-  const titleWrap = document.createElement("div");
-  const title = document.createElement("p");
-  title.className = "memo-title";
-  title.textContent = memo.title;
-  titleWrap.appendChild(title);
+  li.appendChild(btn);
+  return li;
+}
 
-  const badges = document.createElement("div");
-  badges.className = "memo-meta";
+function findMemo(id) {
+  return memos.find((m) => m.id === id);
+}
 
+function openMemoDetail(id) {
+  currentMemoId = id;
+  showMemoView();
+  memoModal.hidden = false;
+}
+
+function showMemoView() {
+  const memo = findMemo(currentMemoId);
+  if (!memo) {
+    memoModal.hidden = true;
+    return;
+  }
+
+  memoEditForm.hidden = true;
+  memoView.hidden = false;
+  memoModalTitle.textContent = memo.title;
+
+  memoViewBadges.innerHTML = "";
   const statusBadge = document.createElement("span");
   statusBadge.className = `badge tag-${STATUS_TAG_COLORS[memo.status] || "gray"}`;
   statusBadge.textContent = STATUS_LABELS[memo.status] || memo.status;
-  badges.appendChild(statusBadge);
+  memoViewBadges.appendChild(statusBadge);
 
   const priorityBadge = document.createElement("span");
   priorityBadge.className = `badge tag-${PRIORITY_TAG_COLORS[memo.priority] || "gray"}`;
   priorityBadge.textContent = `優先度 ${memo.priority}`;
-  badges.appendChild(priorityBadge);
+  memoViewBadges.appendChild(priorityBadge);
 
   for (const category of memo.categories || []) {
     const categoryEl = document.createElement("span");
     categoryEl.className = `tag tag-${categoryTagColor(category)}`;
     categoryEl.textContent = category;
-    badges.appendChild(categoryEl);
+    memoViewBadges.appendChild(categoryEl);
   }
 
-  head.appendChild(titleWrap);
-  li.appendChild(head);
+  memoViewBrief.textContent = memo.brief;
 
-  const brief = document.createElement("p");
-  brief.className = "memo-brief";
-  brief.textContent = memo.brief;
-  li.appendChild(brief);
-
-  li.appendChild(badges);
-
+  memoViewOutputs.innerHTML = "";
   const availableOutputs = Object.keys(memo.outputs || {}).filter((key) => memo.outputs[key]);
-  if (availableOutputs.length > 0) {
-    const outputs = document.createElement("div");
-    outputs.className = "memo-outputs";
-    for (const key of availableOutputs) {
-      const btn = document.createElement("button");
-      btn.className = "output-btn";
-      btn.textContent = OUTPUT_LABELS[key] || key;
-      btn.addEventListener("click", () => openOutput(memo, key));
-      outputs.appendChild(btn);
-    }
-    li.appendChild(outputs);
+  for (const key of availableOutputs) {
+    const outputBtn = document.createElement("button");
+    outputBtn.className = "output-btn";
+    outputBtn.textContent = OUTPUT_LABELS[key] || key;
+    outputBtn.addEventListener("click", () => openOutput(memo, key));
+    memoViewOutputs.appendChild(outputBtn);
   }
 
-  const actions = document.createElement("div");
-  actions.className = "memo-actions";
-
-  const statusSelect = document.createElement("select");
+  memoViewStatus.innerHTML = "";
   for (const [value, label] of Object.entries(STATUS_LABELS)) {
     const opt = document.createElement("option");
     opt.value = value;
     opt.textContent = label;
     if (value === memo.status) opt.selected = true;
-    statusSelect.appendChild(opt);
+    memoViewStatus.appendChild(opt);
   }
-  statusSelect.addEventListener("change", () => updateMemo(memo.id, { status: statusSelect.value }));
-  actions.appendChild(statusSelect);
-
-  const deleteBtn = document.createElement("button");
-  deleteBtn.className = "danger";
-  deleteBtn.textContent = "削除";
-  deleteBtn.addEventListener("click", () => deleteMemo(memo.id));
-  actions.appendChild(deleteBtn);
-
-  li.appendChild(actions);
-  return li;
 }
+
+memoViewStatus.addEventListener("change", () => {
+  if (currentMemoId) updateMemo(currentMemoId, { status: memoViewStatus.value });
+});
+
+memoEditBtn.addEventListener("click", () => {
+  const memo = findMemo(currentMemoId);
+  if (!memo) return;
+
+  editTitle.value = memo.title;
+  editBrief.value = memo.brief;
+  editPriorityValue = memo.priority;
+  editCategoriesValue = new Set(memo.categories || []);
+  renderEditPriorityPicker();
+  renderEditCategoryPicker();
+  editError.hidden = true;
+
+  memoView.hidden = true;
+  memoEditForm.hidden = false;
+});
+
+memoEditCancel.addEventListener("click", showMemoView);
+
+memoEditForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  editError.hidden = true;
+
+  const payload = {
+    title: editTitle.value,
+    brief: editBrief.value,
+    priority: editPriorityValue,
+    categories: [...editCategoriesValue],
+  };
+
+  const res = await api(`/api/memos/${currentMemoId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    editError.textContent = data.error || "保存に失敗しました。";
+    editError.hidden = false;
+    return;
+  }
+
+  await fetchMemos();
+  showMemoView();
+});
+
+memoDeleteBtn.addEventListener("click", () => {
+  if (currentMemoId) deleteMemo(currentMemoId);
+});
+
+memoModalClose.addEventListener("click", () => {
+  memoModal.hidden = true;
+});
+memoModal.addEventListener("click", (e) => {
+  if (e.target === memoModal) memoModal.hidden = true;
+});
 
 async function updateMemo(id, patch) {
   await api(`/api/memos/${id}`, {
@@ -333,11 +431,13 @@ async function updateMemo(id, patch) {
     body: JSON.stringify(patch),
   });
   await fetchMemos();
+  if (currentMemoId === id && !memoModal.hidden) showMemoView();
 }
 
 async function deleteMemo(id) {
   if (!confirm("このメモを削除しますか？")) return;
   await api(`/api/memos/${id}`, { method: "DELETE" });
+  memoModal.hidden = true;
   await fetchMemos();
 }
 

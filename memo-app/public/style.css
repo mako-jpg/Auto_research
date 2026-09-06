@@ -136,6 +136,7 @@ main {
 h2 { margin: 0 0 16px; font-size: 1rem; font-weight: 600; }
 
 form { display: flex; flex-direction: column; gap: 16px; }
+form[hidden] { display: none; }
 
 label {
   display: flex;
@@ -199,19 +200,29 @@ button.danger:hover { background: var(--tag-red-bg); opacity: 1; }
 
 .list-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.filters { display: flex; gap: 4px; flex-wrap: wrap; }
+.filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  margin: 0 -2px;
+  padding: 0 2px;
+}
+.filters::-webkit-scrollbar { display: none; }
 .filter-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
   background: transparent;
   border: none;
   color: var(--muted);
-  border-radius: 4px;
-  padding: 5px 10px;
+  border-radius: 999px;
+  padding: 5px 12px;
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
@@ -223,22 +234,28 @@ button.danger:hover { background: var(--tag-red-bg); opacity: 1; }
 
 .memo-item {
   border-bottom: 1px solid var(--border);
-  padding: 16px 4px;
   border-radius: 4px;
   transition: background 0.1s ease;
 }
-.memo-item:hover { background: var(--hover-bg); }
-.memo-item:first-child { padding-top: 2px; }
 .memo-item:last-child { border-bottom: none; }
 
-.memo-item-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
+.memo-title-btn {
+  align-self: auto;
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  border-radius: 4px;
+  padding: 14px 4px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.98rem;
+  cursor: pointer;
 }
+.memo-title-btn:hover { background: var(--hover-bg); opacity: 1; }
 
-.memo-title { font-weight: 600; margin: 0 0 4px; font-size: 0.98rem; }
 .memo-brief { margin: 4px 0; color: var(--text); font-size: 0.9rem; white-space: pre-wrap; }
 .memo-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
 

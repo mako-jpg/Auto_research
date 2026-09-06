@@ -70,6 +70,53 @@
     </div>
   </div>
 
+  <div id="memo-modal" class="modal" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="memo-modal-title"></h3>
+        <button type="button" id="memo-modal-close" class="secondary">閉じる</button>
+      </div>
+
+      <div id="memo-view">
+        <div class="memo-meta" id="memo-view-badges"></div>
+        <p id="memo-view-brief" class="memo-brief"></p>
+        <div class="memo-outputs" id="memo-view-outputs"></div>
+        <div class="field-block">
+          <span class="field-label">ステータス</span>
+          <select id="memo-view-status"></select>
+        </div>
+        <div class="memo-actions">
+          <button type="button" id="memo-edit-btn" class="secondary">編集</button>
+          <button type="button" id="memo-delete-btn" class="danger">削除</button>
+        </div>
+      </div>
+
+      <form id="memo-edit-form" hidden>
+        <label>
+          タイトル <span class="required">必須</span>
+          <input type="text" id="edit-title" required>
+        </label>
+        <label>
+          リサーチしてほしい内容 <span class="required">必須</span>
+          <textarea id="edit-brief" rows="8"></textarea>
+        </label>
+        <div class="field-block">
+          <span class="field-label">優先度</span>
+          <div class="priority-picker" id="edit-priority-picker"></div>
+        </div>
+        <div class="field-block">
+          <span class="field-label">カテゴリ</span>
+          <div class="category-picker" id="edit-category-picker"></div>
+        </div>
+        <p id="edit-error" class="error" hidden></p>
+        <div class="memo-actions">
+          <button type="submit">保存</button>
+          <button type="button" id="memo-edit-cancel" class="secondary">キャンセル</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <nav class="bottom-nav" id="page-tabs">
     <button type="button" class="bottom-nav-btn active" data-page="memo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>

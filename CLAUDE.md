@@ -14,8 +14,9 @@
 
 ## メモアプリのアーキテクチャ（`memo-app/`）
 
-- `api/` — Vercel Serverless Functions（Node.js）。`login.js`（人間のログイン）/ `logout.js` / `memos.js`（一覧取得・作成）/ `memos/[id].js`（更新・削除）/ `memos/[id]/outputs/[type].js`（生成物本文のアップロード・取得。`type` は `research`/`article`/`video`）。
-- `lib/store.js` — Vercel Blob（`memos.json` と、`outputs/<id>/<type>.md` の生成物本文）への読み書き。
+- `api/` — Vercel Serverless Functions（Node.js）。`login.js`（人間のログイン）/ `logout.js` / `memos.js`（一覧取得・作成）/ `memos/[id].js`（更新・削除）/ `memos/[id]/outputs/[type].js`（生成物本文のアップロード・取得。`type` は `research`/`article`/`video`）/ `categories.js`（カテゴリ一覧取得・追加）。
+- `lib/store.js` — Vercel Blob（`memos.json`、`categories.json`、`outputs/<id>/<type>.md` の生成物本文）への読み書き。
+- `lib/schema.js` — 優先度（1〜5の整数）・カテゴリ配列のバリデーション共通処理。
 - `lib/auth.js` — 認証。**2種類の独立した資格情報**を使う:
   - `ADMIN_EMAIL` / `ADMIN_PASSWORD` — 人間がブラウザからログインするための資格情報。ログインするとセッションCookieが発行される。
   - `PIPELINE_TOKEN` — Claude CodeのRoutine（後述）がAPIを叩くための専用トークン。`Authorization: Bearer <PIPELINE_TOKEN>` ヘッダで認証する。人間用パスワードとは別物なので、片方が漏れてももう片方には影響しない。
@@ -32,10 +33,9 @@
       "id": "abc123",
       "title": "string",
       "brief": "何を・どんな角度でリサーチしてほしいか",
-      "tags": ["AI", "マーケティング"],
-      "priority": "normal",
+      "categories": ["AI", "マーケティング"],
+      "priority": 3,
       "status": "pending",
-      "notes": "任意の補足",
       "created_at": "ISO8601",
       "updated_at": "ISO8601",
       "outputs": {}
@@ -43,6 +43,8 @@
   ]
 }
 ```
+
+`priority` は1〜5の整数（デフォルト3、大きいほど優先度が高い）。`categories` はユーザーが `categories.json`（同じくVercel Blob上、`GET/POST /api/categories` で管理）に登録した名前の中から選んだもの。
 
 `status` は `pending` → `researching` → `drafted` → `done`（または `archived`）と遷移する。パイプラインは `pending` のものだけを処理し、完了したら `drafted` にして `outputs` を `{"research": true, "article": true, "video": true}` のように更新する（生成できた種類だけ `true`）。生成物の本文自体はこの `outputs` フィールドには入らず、`PUT /api/memos/<id>/outputs/<type>` で別途Vercel Blobにアップロードされ、Web UIの「見る」ボタンから読める。リポジトリの `output/<slug>/*.md` にも同じ内容がコミットされる（バックアップ・レビュー履歴用）。
 

@@ -1,8 +1,9 @@
 import crypto from "node:crypto";
 import { isAuthenticated } from "../lib/auth.js";
+import { isValidPriority, normalizeCategories } from "../lib/schema.js";
 import { loadMemos, saveMemos } from "../lib/store.js";
 
-const VALID_PRIORITIES = new Set(["low", "normal", "high"]);
+const DEFAULT_PRIORITY = 3;
 
 function nowIso() {
   return new Date().toISOString().replace(/\.\d+Z$/, "Z");
@@ -29,25 +30,19 @@ export default async function handler(req, res) {
       return;
     }
 
-    const priority = payload.priority || "normal";
-    if (!VALID_PRIORITIES.has(priority)) {
-      res.status(400).json({ error: `priority must be one of ${[...VALID_PRIORITIES].join(", ")}` });
+    const priority = payload.priority === undefined ? DEFAULT_PRIORITY : Number(payload.priority);
+    if (!isValidPriority(priority)) {
+      res.status(400).json({ error: "priority must be an integer from 1 to 5" });
       return;
     }
-
-    let tags = payload.tags || [];
-    tags = typeof tags === "string"
-      ? tags.split(",").map((t) => t.trim()).filter(Boolean)
-      : tags.map((t) => String(t).trim()).filter(Boolean);
 
     const memo = {
       id: crypto.randomUUID().replace(/-/g, "").slice(0, 12),
       title,
       brief,
-      tags,
+      categories: normalizeCategories(payload.categories),
       priority,
       status: "pending",
-      notes: (payload.notes || "").trim(),
       created_at: nowIso(),
       updated_at: nowIso(),
       outputs: {},

@@ -11,7 +11,6 @@
     <div class="header-row">
       <div>
         <h1>リサーチメモ</h1>
-        <p class="subtitle">リサーチしてほしいトピックを書き留めておくと、Claude Code が定期的に読み取って記事下書き・ショート動画構成まで作ります。</p>
       </div>
       <button id="logout-btn" class="secondary">ログアウト</button>
     </div>
@@ -29,24 +28,15 @@
           リサーチしてほしい内容 <span class="required">必須</span>
           <textarea id="brief" name="brief" rows="4" placeholder="何を、どんな角度で調べて記事にしてほしいか書く"></textarea>
         </label>
-        <div class="row">
-          <label>
-            優先度
-            <select id="priority" name="priority">
-              <option value="normal" selected>普通</option>
-              <option value="high">高い</option>
-              <option value="low">低い</option>
-            </select>
-          </label>
-          <label>
-            タグ（カンマ区切り）
-            <input type="text" id="tags" name="tags" placeholder="AI, マーケティング">
-          </label>
+        <div class="field-block">
+          <span class="field-label">優先度</span>
+          <div class="priority-picker" id="priority-picker"></div>
         </div>
-        <label>
-          補足メモ（任意）
-          <textarea id="notes" name="notes" rows="2" placeholder="トーン、参考にしたい記事、避けたい論点など"></textarea>
-        </label>
+        <div class="field-block">
+          <span class="field-label">カテゴリ</span>
+          <div class="category-picker" id="category-picker"></div>
+          <button type="button" id="add-category-btn" class="secondary">+ カテゴリ追加</button>
+        </div>
         <button type="submit">メモを追加</button>
       </form>
       <p id="form-error" class="error" hidden></p>

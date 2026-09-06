@@ -7,6 +7,7 @@ const STATUS_LABELS = {
 };
 
 const OUTPUT_LABELS = { research: "リサーチ", article: "記事下書き", video: "動画構成" };
+const DEFAULT_PRIORITY = 3;
 
 const memoList = document.getElementById("memo-list");
 const emptyState = document.getElementById("empty-state");
@@ -18,9 +19,24 @@ const outputModal = document.getElementById("output-modal");
 const modalTitle = document.getElementById("modal-title");
 const modalBody = document.getElementById("modal-body");
 const modalClose = document.getElementById("modal-close");
+const priorityPicker = document.getElementById("priority-picker");
+const categoryPicker = document.getElementById("category-picker");
+const addCategoryBtn = document.getElementById("add-category-btn");
 
 let memos = [];
+let categories = [];
 let activeFilter = "all";
+let formPriority = DEFAULT_PRIORITY;
+let formCategories = new Set();
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { ...options, credentials: "same-origin" });
+  if (res.status === 401) {
+    window.location.href = "/login.html";
+    throw new Error("unauthorized");
+  }
+  return res;
+}
 
 async function openOutput(memo, type) {
   modalTitle.textContent = `${memo.title} — ${OUTPUT_LABELS[type] || type}`;
@@ -42,21 +58,69 @@ outputModal.addEventListener("click", (e) => {
   if (e.target === outputModal) outputModal.hidden = true;
 });
 
-async function api(path, options = {}) {
-  const res = await fetch(path, { ...options, credentials: "same-origin" });
-  if (res.status === 401) {
-    window.location.href = "/login.html";
-    throw new Error("unauthorized");
-  }
-  return res;
-}
-
 async function fetchMemos() {
   const res = await api("/api/memos");
   memos = await res.json();
   renderFilters();
   render();
 }
+
+async function fetchCategories() {
+  const res = await api("/api/categories");
+  categories = await res.json();
+  renderCategoryPicker();
+}
+
+function renderPriorityPicker() {
+  priorityPicker.innerHTML = "";
+  for (let level = 1; level <= 5; level++) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "priority-btn" + (level === formPriority ? " active" : "");
+    btn.textContent = String(level);
+    btn.addEventListener("click", () => {
+      formPriority = level;
+      renderPriorityPicker();
+    });
+    priorityPicker.appendChild(btn);
+  }
+}
+
+function renderCategoryPicker() {
+  categoryPicker.innerHTML = "";
+  for (const name of categories) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "category-btn" + (formCategories.has(name) ? " active" : "");
+    btn.textContent = name;
+    btn.addEventListener("click", () => {
+      if (formCategories.has(name)) {
+        formCategories.delete(name);
+      } else {
+        formCategories.add(name);
+      }
+      renderCategoryPicker();
+    });
+    categoryPicker.appendChild(btn);
+  }
+}
+
+addCategoryBtn.addEventListener("click", async () => {
+  const name = (window.prompt("新しいカテゴリ名を入力してください") || "").trim();
+  if (!name) return;
+
+  const res = await api("/api/categories", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+
+  if (res.ok) {
+    categories = await res.json();
+    formCategories.add(name);
+    renderCategoryPicker();
+  }
+});
 
 function renderFilters() {
   const counts = { all: memos.length };
@@ -110,15 +174,15 @@ function renderMemoItem(memo) {
   badges.appendChild(statusBadge);
 
   const priorityBadge = document.createElement("span");
-  priorityBadge.className = `badge priority-${memo.priority}`;
-  priorityBadge.textContent = { high: "優先度高", normal: "優先度普通", low: "優先度低" }[memo.priority] || memo.priority;
+  priorityBadge.className = "badge priority-badge";
+  priorityBadge.textContent = `優先度 ${memo.priority}`;
   badges.appendChild(priorityBadge);
 
-  for (const tag of memo.tags || []) {
-    const tagEl = document.createElement("span");
-    tagEl.className = "tag";
-    tagEl.textContent = `#${tag}`;
-    badges.appendChild(tagEl);
+  for (const category of memo.categories || []) {
+    const categoryEl = document.createElement("span");
+    categoryEl.className = "tag";
+    categoryEl.textContent = category;
+    badges.appendChild(categoryEl);
   }
 
   head.appendChild(titleWrap);
@@ -130,13 +194,6 @@ function renderMemoItem(memo) {
   li.appendChild(brief);
 
   li.appendChild(badges);
-
-  if (memo.notes) {
-    const notes = document.createElement("p");
-    notes.className = "memo-notes";
-    notes.textContent = `補足: ${memo.notes}`;
-    li.appendChild(notes);
-  }
 
   const availableOutputs = Object.keys(memo.outputs || {}).filter((key) => memo.outputs[key]);
   if (availableOutputs.length > 0) {
@@ -198,9 +255,8 @@ form.addEventListener("submit", async (e) => {
   const payload = {
     title: document.getElementById("title").value,
     brief: document.getElementById("brief").value,
-    priority: document.getElementById("priority").value,
-    tags: document.getElementById("tags").value,
-    notes: document.getElementById("notes").value,
+    priority: formPriority,
+    categories: [...formCategories],
   };
 
   const res = await api("/api/memos", {
@@ -217,7 +273,10 @@ form.addEventListener("submit", async (e) => {
   }
 
   form.reset();
-  document.getElementById("priority").value = "normal";
+  formPriority = DEFAULT_PRIORITY;
+  formCategories = new Set();
+  renderPriorityPicker();
+  renderCategoryPicker();
   await fetchMemos();
 });
 
@@ -226,4 +285,6 @@ logoutBtn.addEventListener("click", async () => {
   window.location.href = "/login.html";
 });
 
+renderPriorityPicker();
 fetchMemos();
+fetchCategories();

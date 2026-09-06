@@ -1,6 +1,7 @@
 import { put, get } from "@vercel/blob";
 
 const MEMOS_PATHNAME = "memos.json";
+const CATEGORIES_PATHNAME = "categories.json";
 
 function token() {
   return process.env.BLOB_READ_WRITE_TOKEN;
@@ -30,6 +31,17 @@ export async function loadMemos() {
 
 export async function saveMemos(memos) {
   await putBlobText(MEMOS_PATHNAME, JSON.stringify({ memos }, null, 2), "application/json");
+}
+
+export async function loadCategories() {
+  const text = await getBlobText(CATEGORIES_PATHNAME);
+  if (!text) return [];
+  const data = JSON.parse(text);
+  return data.categories || [];
+}
+
+export async function saveCategories(categories) {
+  await putBlobText(CATEGORIES_PATHNAME, JSON.stringify({ categories }, null, 2), "application/json");
 }
 
 function outputPathname(memoId, type) {

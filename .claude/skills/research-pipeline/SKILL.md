@@ -25,7 +25,7 @@ description: Fetches pending entries from the deployed memo app's API (memo-app,
    ```bash
    curl -s -H "Authorization: Bearer $PIPELINE_TOKEN" "$BASE_URL/api/memos"
    ```
-3. `status` が `"pending"` のメモを抽出する。1回の実行で処理するのは **最大3件** まで（暴走・コスト膨張防止）。`priority: "high"` を優先し、次に `created_at` が古い順。
+3. `status` が `"pending"` のメモを抽出する。1回の実行で処理するのは **最大3件** まで（暴走・コスト膨張防止）。`priority` が大きい（5に近い）ものを優先し、次に `created_at` が古い順。
 4. 処理対象がなければ、その旨を短く報告して終了する（無理に何かを作らない）。
 5. 各対象メモについて、以下を順に行う。
 
@@ -33,8 +33,8 @@ description: Fetches pending entries from the deployed memo app's API (memo-app,
 
    b. `output/<slug>/` に保存する想定で、Agent tool（サブエージェント）を **この順番で** 呼び出す。前段の成果物（ファイル内容そのもの）を次のサブエージェントへの入力プロンプトに含めること。
 
-      1. **researcher** エージェント — メモの `title` / `brief` / `tags` / `notes` を渡し、`output/<slug>/research.md` に research brief を書かせる。
-      2. **article-writer** エージェント — 上記 research brief の内容とメモの `title` / `brief` / `notes` を渡し、`output/<slug>/article.md` に記事下書きを書かせる。
+      1. **researcher** エージェント — メモの `title` / `brief` / `categories` を渡し、`output/<slug>/research.md` に research brief を書かせる。
+      2. **article-writer** エージェント — 上記 research brief の内容とメモの `title` / `brief` を渡し、`output/<slug>/article.md` に記事下書きを書かせる。
       3. **video-composer** エージェント — 上記 article（取得できなければ research brief）の内容を渡し、`output/<slug>/video-structure.md` にショート動画構成を書かせる。
 
    c. 生成した3ファイルの中身を、それぞれメモアプリにアップロードする（メモアプリのWeb UIから直接読めるようにするため）:

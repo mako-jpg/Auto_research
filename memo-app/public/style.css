@@ -99,8 +99,8 @@ input, textarea, select {
   resize: vertical;
 }
 
-.row { display: flex; gap: 12px; flex-wrap: wrap; }
-.row label { flex: 1; min-width: 180px; }
+.field-block { display: flex; flex-direction: column; gap: 8px; }
+.field-label { font-size: 0.88rem; color: var(--muted); }
 
 button {
   align-self: flex-start;
@@ -182,9 +182,7 @@ button.danger {
 .badge.status-done { background: var(--done); }
 .badge.status-archived { background: var(--archived); }
 
-.badge.priority-high { background: var(--danger); }
-.badge.priority-normal { background: var(--muted); }
-.badge.priority-low { background: var(--border); color: var(--muted); }
+.badge.priority-badge { background: var(--accent); }
 
 .tag {
   font-size: 0.75rem;
@@ -194,7 +192,42 @@ button.danger {
   padding: 2px 8px;
 }
 
-.memo-notes { margin-top: 8px; font-size: 0.85rem; color: var(--muted); }
+.priority-picker, .category-picker {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.priority-btn {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 36px;
+  padding: 8px 0;
+  text-align: center;
+  cursor: pointer;
+}
+.priority-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.category-btn {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.category-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
 
 .memo-outputs { margin-top: 8px; font-size: 0.82rem; }
 .memo-outputs a { color: var(--accent); margin-right: 10px; }

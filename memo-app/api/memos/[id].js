@@ -1,8 +1,8 @@
 import { isAuthenticated } from "../../lib/auth.js";
+import { isValidPriority, normalizeCategories } from "../../lib/schema.js";
 import { loadMemos, saveMemos } from "../../lib/store.js";
 
 const VALID_STATUSES = new Set(["pending", "researching", "drafted", "done", "archived"]);
-const VALID_PRIORITIES = new Set(["low", "normal", "high"]);
 
 export default async function handler(req, res) {
   if (!isAuthenticated(req)) {
@@ -24,13 +24,19 @@ export default async function handler(req, res) {
       res.status(400).json({ error: `status must be one of ${[...VALID_STATUSES].join(", ")}` });
       return;
     }
-    if (payload.priority && !VALID_PRIORITIES.has(payload.priority)) {
-      res.status(400).json({ error: `priority must be one of ${[...VALID_PRIORITIES].join(", ")}` });
-      return;
+    if (payload.priority !== undefined) {
+      if (!isValidPriority(payload.priority)) {
+        res.status(400).json({ error: "priority must be an integer from 1 to 5" });
+        return;
+      }
+      payload.priority = Number(payload.priority);
+    }
+    if (payload.categories !== undefined) {
+      payload.categories = normalizeCategories(payload.categories);
     }
 
     const memo = memos[index];
-    for (const key of ["title", "brief", "tags", "priority", "status", "notes", "outputs"]) {
+    for (const key of ["title", "brief", "categories", "priority", "status", "outputs"]) {
       if (key in payload) memo[key] = payload[key];
     }
     memo.updated_at = new Date().toISOString().replace(/\.\d+Z$/, "Z");

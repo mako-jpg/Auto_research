@@ -39,6 +39,9 @@ const modalClose = document.getElementById("modal-close");
 const priorityPicker = document.getElementById("priority-picker");
 const categoryPicker = document.getElementById("category-picker");
 const addCategoryBtn = document.getElementById("add-category-btn");
+const addMemoFab = document.getElementById("add-memo-fab");
+const addMemoModal = document.getElementById("add-memo-modal");
+const addMemoClose = document.getElementById("add-memo-close");
 const pageTabs = document.getElementById("page-tabs");
 const researchGrid = document.getElementById("research-grid");
 const researchEmpty = document.getElementById("research-empty");
@@ -470,7 +473,18 @@ form.addEventListener("submit", async (e) => {
   formCategories = new Set();
   renderPriorityPicker();
   renderCategoryPicker();
+  addMemoModal.hidden = true;
   await fetchMemos();
+});
+
+addMemoFab.addEventListener("click", () => {
+  addMemoModal.hidden = false;
+});
+addMemoClose.addEventListener("click", () => {
+  addMemoModal.hidden = true;
+});
+addMemoModal.addEventListener("click", (e) => {
+  if (e.target === addMemoModal) addMemoModal.hidden = true;
 });
 
 logoutBtn.addEventListener("click", async () => {

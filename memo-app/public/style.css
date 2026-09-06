@@ -109,6 +109,24 @@ h1 { margin: 0; font-size: 1.3rem; font-weight: 700; }
 .bottom-nav-btn:hover { color: var(--text); background: var(--hover-bg); transform: none; box-shadow: none; opacity: 1; }
 .bottom-nav-btn.active { color: var(--accent); }
 
+.fab {
+  align-self: auto;
+  position: fixed;
+  right: 20px;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  z-index: 15;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 1.8rem;
+  line-height: 1;
+  box-shadow: 0 4px 14px hsl(217 91% 60% / 0.4);
+}
+.fab:hover { opacity: 0.9; }
+
 .login-main {
   max-width: 380px;
   margin: 15vh auto 0;
@@ -410,7 +428,7 @@ button.danger:hover { background: var(--tag-red-bg); opacity: 1; }
   align-items: center;
   justify-content: center;
   padding: 24px;
-  z-index: 10;
+  z-index: 30;
 }
 .modal[hidden] { display: none; }
 

@@ -17,37 +17,12 @@
   <main>
     <div id="page-memo" class="page">
       <section class="card">
-        <h2>新しいメモを追加</h2>
-        <form id="memo-form">
-          <label>
-            タイトル <span class="required">必須</span>
-            <input type="text" id="title" name="title" placeholder="例: 生成AIの著作権問題まとめ" required>
-          </label>
-          <label>
-            リサーチしてほしい内容 <span class="required">必須</span>
-            <textarea id="brief" name="brief" rows="8" placeholder="何を、どんな角度で調べて記事にしてほしいか書く"></textarea>
-          </label>
-          <div class="field-block">
-            <span class="field-label">優先度</span>
-            <div class="priority-picker" id="priority-picker"></div>
-          </div>
-          <div class="field-block">
-            <span class="field-label">カテゴリ</span>
-            <div class="category-picker" id="category-picker"></div>
-            <button type="button" id="add-category-btn" class="secondary">+ カテゴリ追加</button>
-          </div>
-          <button type="submit">メモを追加</button>
-        </form>
-        <p id="form-error" class="error" hidden></p>
-      </section>
-
-      <section class="card">
         <div class="list-header">
           <h2>メモ一覧</h2>
           <div class="filters" id="status-filters"></div>
         </div>
         <ul id="memo-list" class="memo-list"></ul>
-        <p id="empty-state" class="empty" hidden>まだメモがありません。上のフォームから追加してください。</p>
+        <p id="empty-state" class="empty" hidden>まだメモがありません。右下の + から追加してください。</p>
       </section>
     </div>
 
@@ -59,6 +34,38 @@
       </section>
     </div>
   </main>
+
+  <button type="button" id="add-memo-fab" class="fab" aria-label="新しいメモを追加">+</button>
+
+  <div id="add-memo-modal" class="modal" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>新しいメモを追加</h3>
+        <button type="button" id="add-memo-close" class="secondary">閉じる</button>
+      </div>
+      <form id="memo-form">
+        <label>
+          タイトル <span class="required">必須</span>
+          <input type="text" id="title" name="title" placeholder="例: 生成AIの著作権問題まとめ" required>
+        </label>
+        <label>
+          リサーチしてほしい内容 <span class="required">必須</span>
+          <textarea id="brief" name="brief" rows="8" placeholder="何を、どんな角度で調べて記事にしてほしいか書く"></textarea>
+        </label>
+        <div class="field-block">
+          <span class="field-label">優先度</span>
+          <div class="priority-picker" id="priority-picker"></div>
+        </div>
+        <div class="field-block">
+          <span class="field-label">カテゴリ</span>
+          <div class="category-picker" id="category-picker"></div>
+          <button type="button" id="add-category-btn" class="secondary">+ カテゴリ追加</button>
+        </div>
+        <p id="form-error" class="error" hidden></p>
+        <button type="submit">メモを追加</button>
+      </form>
+    </div>
+  </div>
 
   <div id="output-modal" class="modal" hidden>
     <div class="modal-content">

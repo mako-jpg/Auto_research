@@ -223,6 +223,7 @@ button.danger {
   padding: 24px;
   z-index: 10;
 }
+.modal[hidden] { display: none; }
 
 .modal-content {
   background: var(--card-bg);

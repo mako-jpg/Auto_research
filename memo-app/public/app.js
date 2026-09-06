@@ -70,10 +70,10 @@ async function fetchMemos() {
 }
 
 pageTabs.addEventListener("click", (e) => {
-  const btn = e.target.closest(".tab-btn");
+  const btn = e.target.closest(".bottom-nav-btn");
   if (!btn) return;
 
-  for (const tab of pageTabs.querySelectorAll(".tab-btn")) {
+  for (const tab of pageTabs.querySelectorAll(".bottom-nav-btn")) {
     tab.classList.toggle("active", tab === btn);
   }
   document.getElementById("page-memo").hidden = btn.dataset.page !== "memo";

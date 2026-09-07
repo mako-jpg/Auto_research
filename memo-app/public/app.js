@@ -174,6 +174,16 @@ function renderResearchGrid() {
 function renderResearchCard(memo) {
   const card = document.createElement("article");
   card.className = "research-card";
+  card.setAttribute("role", "button");
+  card.tabIndex = 0;
+  const open = () => openOutputPage(memo);
+  card.addEventListener("click", open);
+  card.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      open();
+    }
+  });
 
   const title = document.createElement("h3");
   title.className = "research-card-title";
@@ -198,17 +208,6 @@ function renderResearchCard(memo) {
     meta.appendChild(categoryEl);
   }
   card.appendChild(meta);
-
-  const outputs = document.createElement("div");
-  outputs.className = "memo-outputs";
-  for (const key of Object.keys(memo.outputs || {}).filter((k) => memo.outputs[k])) {
-    const btn = document.createElement("button");
-    btn.className = "output-btn";
-    btn.textContent = OUTPUT_LABELS[key] || key;
-    btn.addEventListener("click", () => openOutputPage(memo, key));
-    outputs.appendChild(btn);
-  }
-  card.appendChild(outputs);
 
   return card;
 }

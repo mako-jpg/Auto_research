@@ -33,10 +33,6 @@ const form = document.getElementById("memo-form");
 const formError = document.getElementById("form-error");
 const statusFilters = document.getElementById("status-filters");
 const logoutBtn = document.getElementById("logout-btn");
-const outputModal = document.getElementById("output-modal");
-const modalTitle = document.getElementById("modal-title");
-const modalBody = document.getElementById("modal-body");
-const modalClose = document.getElementById("modal-close");
 const priorityPicker = document.getElementById("priority-picker");
 const categoryPicker = document.getElementById("category-picker");
 const addCategoryBtn = document.getElementById("add-category-btn");
@@ -46,6 +42,11 @@ const addMemoClose = document.getElementById("add-memo-close");
 const pageTabs = document.getElementById("page-tabs");
 const researchGrid = document.getElementById("research-grid");
 const researchEmpty = document.getElementById("research-empty");
+
+const outputBackBtn = document.getElementById("output-back-btn");
+const outputPageTitle = document.getElementById("output-page-title");
+const outputTabs = document.getElementById("output-tabs");
+const outputPageContent = document.getElementById("output-page-content");
 
 const memoModal = document.getElementById("memo-modal");
 const memoModalTitle = document.getElementById("memo-modal-title");
@@ -75,6 +76,9 @@ let currentMemoId = null;
 let editPriorityValue = DEFAULT_PRIORITY;
 let editCategoriesValue = new Set();
 
+let currentOutputMemo = null;
+let currentOutputType = null;
+
 async function api(path, options = {}) {
   const res = await fetch(path, { ...options, credentials: "same-origin" });
   if (res.status === 401) {
@@ -84,24 +88,63 @@ async function api(path, options = {}) {
   return res;
 }
 
-async function openOutput(memo, type) {
-  modalTitle.textContent = `${memo.title} — ${OUTPUT_LABELS[type] || type}`;
-  modalBody.textContent = "読み込み中…";
-  outputModal.hidden = false;
+function availableOutputTypes(memo) {
+  return Object.keys(memo.outputs || {}).filter((key) => memo.outputs[key]);
+}
 
-  try {
-    const res = await api(`/api/memos/${memo.id}/outputs/${type}`);
-    modalBody.textContent = res.ok ? await res.text() : "まだ生成されていません。";
-  } catch {
-    modalBody.textContent = "読み込みに失敗しました。";
+function showPage(name) {
+  for (const page of ["memo", "research", "output"]) {
+    document.getElementById(`page-${page}`).hidden = page !== name;
+  }
+  pageTabs.hidden = name === "output";
+  if (name !== "output") {
+    for (const tab of pageTabs.querySelectorAll(".bottom-nav-btn")) {
+      tab.classList.toggle("active", tab.dataset.page === name);
+    }
   }
 }
 
-modalClose.addEventListener("click", () => {
-  outputModal.hidden = true;
-});
-outputModal.addEventListener("click", (e) => {
-  if (e.target === outputModal) outputModal.hidden = true;
+function renderOutputTabs() {
+  const types = availableOutputTypes(currentOutputMemo);
+  outputTabs.innerHTML = "";
+  for (const key of types) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "output-tab-btn" + (key === currentOutputType ? " active" : "");
+    btn.textContent = OUTPUT_LABELS[key] || key;
+    btn.addEventListener("click", () => {
+      currentOutputType = key;
+      renderOutputTabs();
+      loadOutputContent();
+    });
+    outputTabs.appendChild(btn);
+  }
+}
+
+async function loadOutputContent() {
+  outputPageContent.textContent = "読み込み中…";
+  try {
+    const res = await api(`/api/memos/${currentOutputMemo.id}/outputs/${currentOutputType}`);
+    outputPageContent.textContent = res.ok ? await res.text() : "まだ生成されていません。";
+  } catch {
+    outputPageContent.textContent = "読み込みに失敗しました。";
+  }
+}
+
+function openOutputPage(memo, type) {
+  const types = availableOutputTypes(memo);
+  if (types.length === 0) return;
+
+  currentOutputMemo = memo;
+  currentOutputType = types.includes(type) ? type : types[0];
+  outputPageTitle.textContent = memo.title;
+  renderOutputTabs();
+  showPage("output");
+  loadOutputContent();
+}
+
+outputBackBtn.addEventListener("click", () => {
+  showPage("research");
 });
 
 async function fetchMemos() {
@@ -115,12 +158,7 @@ async function fetchMemos() {
 pageTabs.addEventListener("click", (e) => {
   const btn = e.target.closest(".bottom-nav-btn");
   if (!btn) return;
-
-  for (const tab of pageTabs.querySelectorAll(".bottom-nav-btn")) {
-    tab.classList.toggle("active", tab === btn);
-  }
-  document.getElementById("page-memo").hidden = btn.dataset.page !== "memo";
-  document.getElementById("page-research").hidden = btn.dataset.page !== "research";
+  showPage(btn.dataset.page);
 });
 
 function renderResearchGrid() {
@@ -167,7 +205,7 @@ function renderResearchCard(memo) {
     const btn = document.createElement("button");
     btn.className = "output-btn";
     btn.textContent = OUTPUT_LABELS[key] || key;
-    btn.addEventListener("click", () => openOutput(memo, key));
+    btn.addEventListener("click", () => openOutputPage(memo, key));
     outputs.appendChild(btn);
   }
   card.appendChild(outputs);
@@ -353,7 +391,10 @@ function showMemoView() {
     const outputBtn = document.createElement("button");
     outputBtn.className = "output-btn";
     outputBtn.textContent = OUTPUT_LABELS[key] || key;
-    outputBtn.addEventListener("click", () => openOutput(memo, key));
+    outputBtn.addEventListener("click", () => {
+      memoModal.hidden = true;
+      openOutputPage(memo, key);
+    });
     memoViewOutputs.appendChild(outputBtn);
   }
 

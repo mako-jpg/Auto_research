@@ -33,6 +33,15 @@
         <p id="research-empty" class="empty" hidden>まだ生成物がありません。メモが処理されるとここに表示されます。</p>
       </section>
     </div>
+
+    <div id="page-output" class="page output-page" hidden>
+      <div class="output-page-header">
+        <button type="button" id="output-back-btn" class="secondary" aria-label="戻る">← 戻る</button>
+        <h2 id="output-page-title"></h2>
+      </div>
+      <div class="output-tabs" id="output-tabs"></div>
+      <pre id="output-page-content" class="output-content"></pre>
+    </div>
   </main>
 
   <button type="button" id="add-memo-fab" class="fab" aria-label="新しいメモを追加">+</button>
@@ -64,16 +73,6 @@
         <p id="form-error" class="error" hidden></p>
         <button type="submit">メモを追加</button>
       </form>
-    </div>
-  </div>
-
-  <div id="output-modal" class="modal" hidden>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="modal-title"></h3>
-        <button id="modal-close" class="secondary">閉じる</button>
-      </div>
-      <pre id="modal-body" class="modal-body"></pre>
     </div>
   </div>
 

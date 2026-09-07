@@ -525,16 +525,69 @@ button.danger:hover { background: var(--tag-red-bg); opacity: 1; }
 
 .output-content {
   overflow-y: auto;
-  white-space: pre-wrap;
   word-break: break-word;
   font-family: inherit;
   font-size: 0.98rem;
   line-height: 1.85;
-  margin: 0;
   padding-bottom: 24px;
 }
-.output-content a {
-  color: var(--accent);
-  text-decoration: underline;
+.output-content > *:first-child { margin-top: 0; }
+.output-content > *:last-child { margin-bottom: 0; }
+
+.output-content h1, .output-content h2, .output-content h3,
+.output-content h4, .output-content h5, .output-content h6 {
+  margin: 1.5em 0 0.5em;
+  font-weight: 700;
+  line-height: 1.4;
 }
+.output-content h1 { font-size: 1.3rem; }
+.output-content h2 { font-size: 1.15rem; }
+.output-content h3 { font-size: 1.05rem; }
+
+.output-content p { margin: 0 0 1em; }
+.output-content ul, .output-content ol { margin: 0 0 1em; padding-left: 1.4em; }
+.output-content li { margin-bottom: 0.3em; }
+.output-content strong { font-weight: 700; }
+
+.output-content code {
+  background: var(--hover-bg);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.88em;
+}
+.output-content pre {
+  background: var(--hover-bg);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 0 0 1em;
+}
+.output-content pre code { background: none; padding: 0; }
+
+.output-content blockquote {
+  margin: 0 0 1em;
+  padding: 2px 14px;
+  border-left: 3px solid var(--border);
+  color: var(--muted);
+}
+.output-content hr { border: none; border-top: 1px solid var(--border); margin: 1.5em 0; }
+
+.output-content a { color: var(--accent); text-decoration: underline; }
 .output-content a:hover { opacity: 0.8; }
+
+.output-content table {
+  display: block;
+  overflow-x: auto;
+  width: max-content;
+  max-width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1.2em;
+  font-size: 0.9rem;
+}
+.output-content th, .output-content td {
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.output-content th { background: var(--hover-bg); font-weight: 600; }

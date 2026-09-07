@@ -127,33 +127,24 @@ function renderOutputTabs() {
   }
 }
 
-function escapeHtml(str) {
-  const chars = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-  return str.replace(/[&<>"']/g, (ch) => chars[ch]);
-}
-
-function linkifyText(text) {
-  // Restricted to ASCII URL characters (no parens/quotes/brackets) rather than
-  // "anything but whitespace" — Japanese text has no spaces between words, so
-  // a whitespace-terminated match would swallow the rest of the sentence/
-  // paragraph following a URL as if it were part of the link.
-  return escapeHtml(text).replace(/https?:\/\/[A-Za-z0-9\-._~:/?#@!$&*+,;=%]+/g, (url) => {
-    let trail = "";
-    while (url && /[.,;:!?]$/.test(url)) {
-      trail = url.slice(-1) + trail;
-      url = url.slice(0, -1);
-    }
-    if (!url) return trail;
-    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${trail}`;
-  });
+function renderMarkdown(container, text) {
+  const html = window.DOMPurify.sanitize(window.marked.parse(text, { gfm: true, breaks: true }));
+  container.innerHTML = html;
+  for (const a of container.querySelectorAll("a")) {
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+  }
 }
 
 async function loadOutputContent() {
   outputPageContent.textContent = "読み込み中…";
   try {
     const res = await api(`/api/memos/${currentOutputMemo.id}/outputs/${currentOutputType}`);
-    const text = res.ok ? await res.text() : "まだ生成されていません。";
-    outputPageContent.innerHTML = linkifyText(text);
+    if (!res.ok) {
+      outputPageContent.textContent = "まだ生成されていません。";
+      return;
+    }
+    renderMarkdown(outputPageContent, await res.text());
   } catch {
     outputPageContent.textContent = "読み込みに失敗しました。";
   }

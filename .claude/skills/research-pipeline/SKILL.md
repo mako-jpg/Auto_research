@@ -20,6 +20,8 @@ description: Fetches pending entries from the deployed memo app's API (memo-app,
 
 ## 手順
 
+0. リポジトリへの書き込み（push）権限がまだ無い状態で起動した場合（例: Routineがgit sourceを指定せずにセッションを起動した場合）は、まず `mcp__Claude_Code_Remote__add_repo`（`owner: "mako-jpg"`, `repo: "Auto_research"`, `access: "push"`）でpush可能な状態のクローンを取得し、`mcp__Claude_Code_Remote__register_repo_root` でルートディレクトリを登録してから以降の作業を行う。このリポジトリは `claude/research-article-automation-u3efhq` という1つのブランチのみで運用されている（デフォルトブランチ＝本番ブランチ）。この手順を飛ばすと、API経由の更新（メモのstatus更新・生成物アップロード）は成功するのに、最後のgit commit/pushだけが失敗する（push権限が無いため）という分かりにくい失敗の仕方をするので注意。
+
 1. `docs/deployment.md` を Read で読み、本番URLを確認する。
 2. Bash（curl）で `GET {本番URL}/api/memos` を叩き、メモ一覧を取得する。例:
    ```bash
@@ -55,7 +57,7 @@ description: Fetches pending entries from the deployed memo app's API (memo-app,
       ```
       （`outputs` の値は真偽値。アップロードに成功した種類だけ `true` にする。Web UIはこのキーの有無で「見る」ボタンの表示を判断する）
 
-6. すべて処理し終えたら、`output/` 配下の新規ファイルを git add / commit し、このセッションの指定ブランチに push する（リポジトリ内にも下書きの記録を残すため。`memos.json` はAPI経由で既に更新済みなのでコミット対象ではない）。
+6. すべて処理し終えたら、`output/` 配下の新規ファイルを git add / commit し、`git push origin claude/research-article-automation-u3efhq` で明示的にこのブランチへ push する（リポジトリ内にも下書きの記録を残すため。`memos.json` はAPI経由で既に更新済みなのでコミット対象ではない）。push が失敗した場合は理由（権限不足など）を最終報告に必ず含める。
 
 7. 最後に日本語で簡潔に報告する: 処理したメモのタイトル一覧、それぞれの3つの出力ファイルへのパス、そして必ず「これは下書きです。公開前に内容を確認してください」と伝える。
 

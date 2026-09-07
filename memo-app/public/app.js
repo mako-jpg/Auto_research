@@ -9,6 +9,7 @@ const STATUS_LABELS = {
 const OUTPUT_LABELS = { research: "リサーチ", article: "記事下書き", video: "動画構成" };
 const DEFAULT_PRIORITY = 3;
 const FILTER_STATUSES = ["pending", "researching", "done"];
+const EDITABLE_STATUSES = ["pending", "done", "archived"];
 
 const STATUS_TAG_COLORS = {
   pending: "gray",
@@ -357,10 +358,13 @@ function showMemoView() {
   }
 
   memoViewStatus.innerHTML = "";
-  for (const [value, label] of Object.entries(STATUS_LABELS)) {
+  const statusOptions = EDITABLE_STATUSES.includes(memo.status)
+    ? EDITABLE_STATUSES
+    : [memo.status, ...EDITABLE_STATUSES];
+  for (const value of statusOptions) {
     const opt = document.createElement("option");
     opt.value = value;
-    opt.textContent = label;
+    opt.textContent = STATUS_LABELS[value] || value;
     if (value === memo.status) opt.selected = true;
     memoViewStatus.appendChild(opt);
   }

@@ -1,6 +1,6 @@
 ---
 name: research-pipeline
-description: Fetches pending entries from the deployed memo app's API (memo-app, hosted on Vercel), and for each one runs the researcher → article-writer → video-composer subagent pipeline, saving a research brief, a Note article draft, and a short-video structure under output/, then updates the memo's status via the API and commits the generated files. Use when asked to process memos, run the research pipeline, or when a scheduled routine fires to check for new memo entries.
+description: Fetches pending entries from the deployed memo app's API (memo-app, hosted on Vercel), and for each one runs the researcher agent (always) followed by article-writer and/or video-composer (whichever the memo's outputTypes selects), saving a research brief, and a Note article draft and/or short-video structure, under output/, then updates the memo's status via the API and commits the generated files. Use when asked to process memos, run the research pipeline, or when a scheduled routine fires to check for new memo entries.
 ---
 
 # Research → Note記事 → ショート動画構成 パイプライン
@@ -16,7 +16,8 @@ description: Fetches pending entries from the deployed memo app's API (memo-app,
 - API:
   - `GET /api/memos` — 全メモの一覧を取得
   - `PUT /api/memos/<id>` — 指定メモを部分更新（`status` / `outputs` など）
-  - `PUT /api/memos/<id>/outputs/<type>` — 生成物の本文（Markdown）をアップロードする（`type` は `research` / `article` / `video`）。body に生ファイル内容をそのまま送る。メモアプリのWeb UIはこれを読んでその場で表示する。
+  - `PUT /api/memos/<id>/outputs/<type>` — 生成物の本文（Markdown）をアップロードする（`type` は `article` / `video` のみ。**`research` は含まない** — リサーチはパイプラインが常に内部的に行う下調べであり、Web UI上の生成物としては扱わない）。body に生ファイル内容をそのまま送る。メモアプリのWeb UIはこれを読んでその場で表示する。
+- 各メモの `outputTypes` フィールド（`["article"]` や `["article","video"]` など）が、そのメモについて生成すべき項目を指定する。ユーザーがメモ作成・編集画面のボタンで選ぶ。**リサーチ（researcherエージェント）は選択肢に関係なく毎回必ず実行する**（記事・動画の元になる下調べのため）。
 
 ## 手順
 
@@ -33,33 +34,35 @@ description: Fetches pending entries from the deployed memo app's API (memo-app,
 
    a. メモの `id` と `title` から `slug` を決める（例: `2026-09-04-ai-copyright-issues`。日付は今日の日付、以降は英数字・ハイフンのみのタイトル要約）。
 
-   b. `output/<slug>/` に保存する想定で、Agent tool（サブエージェント）を **この順番で** 呼び出す。前段の成果物（ファイル内容そのもの）を次のサブエージェントへの入力プロンプトに含めること。
+   b. メモの `outputTypes` を見て、`article` / `video` のうちどれを生成するか決める（フィールドが無い古いメモは両方とも生成する）。
 
-      1. **researcher** エージェント — メモの `title` / `brief` / `categories` を渡し、`output/<slug>/research.md` に research brief を書かせる。
-      2. **article-writer** エージェント — 上記 research brief の内容とメモの `title` / `brief` を渡し、`output/<slug>/article.md` に記事下書きを書かせる。
-      3. **video-composer** エージェント — 上記 article（取得できなければ research brief）の内容を渡し、`output/<slug>/video-structure.md` にショート動画構成を書かせる。
+   c. `output/<slug>/` に保存する想定で、Agent tool（サブエージェント）を **この順番で** 呼び出す。前段の成果物（ファイル内容そのもの）を次のサブエージェントへの入力プロンプトに含めること。
 
-   c. 生成した3ファイルの中身を、それぞれメモアプリにアップロードする（メモアプリのWeb UIから直接読めるようにするため）:
+      1. **researcher** エージェント — `outputTypes` の内容に関わらず**必ず**呼び出す。メモの `title` / `brief` / `categories` を渡し、`output/<slug>/research.md` に research brief を書かせる（記事・動画の元ネタ。Web UIにはアップロードしない、リポジトリへの記録用）。
+      2. **article-writer** エージェント — `outputTypes` に `"article"` が含まれる場合のみ呼び出す。上記 research brief の内容とメモの `title` / `brief` を渡し、`output/<slug>/article.md` に記事下書きを書かせる。
+      3. **video-composer** エージェント — `outputTypes` に `"video"` が含まれる場合のみ呼び出す。article-writer を呼んでいれば article の内容を、呼んでいなければ research brief の内容を渡し、`output/<slug>/video-structure.md` にショート動画構成を書かせる。
+
+   d. 生成した（`research.md` 以外の）ファイルの中身を、それぞれメモアプリにアップロードする（メモアプリのWeb UIから直接読めるようにするため。`research.md` はアップロードしない）:
       ```bash
-      curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: text/markdown" \
-        --data-binary @output/<slug>/research.md "$BASE_URL/api/memos/<id>/outputs/research"
+      # article-writer を呼んだ場合
       curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: text/markdown" \
         --data-binary @output/<slug>/article.md "$BASE_URL/api/memos/<id>/outputs/article"
+      # video-composer を呼んだ場合
       curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: text/markdown" \
         --data-binary @output/<slug>/video-structure.md "$BASE_URL/api/memos/<id>/outputs/video"
       ```
 
-   d. アップロードが終わったら、`PUT {本番URL}/api/memos/<id>` を叩いてメモの状態を更新する:
+   e. アップロードが終わったら、`PUT {本番URL}/api/memos/<id>` を叩いてメモの状態を更新する。`outputs` には実際に生成・アップロードした種類だけを `true` で含める（`research` は含めない）:
       ```bash
       curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: application/json" \
-        -d '{"status":"drafted","outputs":{"research":true,"article":true,"video":true}}' \
+        -d '{"status":"drafted","outputs":{"article":true,"video":true}}' \
         "$BASE_URL/api/memos/<id>"
       ```
-      （`outputs` の値は真偽値。アップロードに成功した種類だけ `true` にする。Web UIはこのキーの有無で「見る」ボタンの表示を判断する）
+      （Web UIはこのキーの有無で「見る」ボタンの表示を判断する）
 
 6. すべて処理し終えたら、`output/` 配下の新規ファイルを git add / commit し、`git push origin claude/research-article-automation-u3efhq` で明示的にこのブランチへ push する（リポジトリ内にも下書きの記録を残すため。`memos.json` はAPI経由で既に更新済みなのでコミット対象ではない）。push が失敗した場合は理由（権限不足など）を最終報告に必ず含める。
 
-7. 最後に日本語で簡潔に報告する: 処理したメモのタイトル一覧、それぞれの3つの出力ファイルへのパス、そして必ず「これは下書きです。公開前に内容を確認してください」と伝える。
+7. 最後に日本語で簡潔に報告する: 処理したメモのタイトル一覧、それぞれ生成した出力ファイルへのパス（`research.md` は毎回、`article.md`/`video-structure.md` はそのメモの `outputTypes` で選ばれたものだけ）、そして必ず「これは下書きです。公開前に内容を確認してください」と伝える。
 
 ## 注意事項
 

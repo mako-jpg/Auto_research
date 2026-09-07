@@ -6,7 +6,9 @@ const STATUS_LABELS = {
   archived: "アーカイブ",
 };
 
-const OUTPUT_LABELS = { research: "リサーチ", article: "記事下書き", video: "動画構成" };
+const OUTPUT_LABELS = { article: "記事下書き", video: "動画構成" };
+const OUTPUT_TYPE_KEYS = ["article", "video"];
+const DEFAULT_OUTPUT_TYPES = ["article", "video"];
 const DEFAULT_PRIORITY = 3;
 const FILTER_STATUSES = ["pending", "researching", "done"];
 const EDITABLE_STATUSES = ["pending", "done", "archived"];
@@ -35,6 +37,7 @@ const statusFilters = document.getElementById("status-filters");
 const logoutBtn = document.getElementById("logout-btn");
 const priorityPicker = document.getElementById("priority-picker");
 const categoryPicker = document.getElementById("category-picker");
+const outputTypePicker = document.getElementById("output-type-picker");
 const addCategoryBtn = document.getElementById("add-category-btn");
 const addMemoFab = document.getElementById("add-memo-fab");
 const addMemoModal = document.getElementById("add-memo-modal");
@@ -64,6 +67,7 @@ const editTitle = document.getElementById("edit-title");
 const editBrief = document.getElementById("edit-brief");
 const editPriorityPicker = document.getElementById("edit-priority-picker");
 const editCategoryPicker = document.getElementById("edit-category-picker");
+const editOutputTypePicker = document.getElementById("edit-output-type-picker");
 const editError = document.getElementById("edit-error");
 
 let memos = [];
@@ -71,10 +75,12 @@ let categories = [];
 let activeFilter = "all";
 let formPriority = DEFAULT_PRIORITY;
 let formCategories = new Set();
+let formOutputTypes = new Set(DEFAULT_OUTPUT_TYPES);
 
 let currentMemoId = null;
 let editPriorityValue = DEFAULT_PRIORITY;
 let editCategoriesValue = new Set();
+let editOutputTypesValue = new Set(DEFAULT_OUTPUT_TYPES);
 
 let currentOutputMemo = null;
 let currentOutputType = null;
@@ -89,7 +95,7 @@ async function api(path, options = {}) {
 }
 
 function availableOutputTypes(memo) {
-  return Object.keys(memo.outputs || {}).filter((key) => memo.outputs[key]);
+  return OUTPUT_TYPE_KEYS.filter((key) => (memo.outputs || {})[key]);
 }
 
 function showPage(name) {
@@ -162,7 +168,7 @@ pageTabs.addEventListener("click", (e) => {
 });
 
 function renderResearchGrid() {
-  const withOutputs = memos.filter((m) => Object.values(m.outputs || {}).some(Boolean));
+  const withOutputs = memos.filter((m) => availableOutputTypes(m).length > 0);
   researchGrid.innerHTML = "";
   researchEmpty.hidden = withOutputs.length > 0;
 
@@ -282,6 +288,35 @@ function renderEditCategoryPicker() {
   });
 }
 
+function renderOutputTypeChips(container, selectedSet, onToggle) {
+  container.innerHTML = "";
+  for (const key of OUTPUT_TYPE_KEYS) {
+    const isActive = selectedSet.has(key);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "category-btn" + (isActive ? " active" : "");
+    btn.textContent = OUTPUT_LABELS[key];
+    btn.addEventListener("click", () => onToggle(key));
+    container.appendChild(btn);
+  }
+}
+
+function renderOutputTypePicker() {
+  renderOutputTypeChips(outputTypePicker, formOutputTypes, (key) => {
+    if (formOutputTypes.has(key) && formOutputTypes.size > 1) formOutputTypes.delete(key);
+    else formOutputTypes.add(key);
+    renderOutputTypePicker();
+  });
+}
+
+function renderEditOutputTypePicker() {
+  renderOutputTypeChips(editOutputTypePicker, editOutputTypesValue, (key) => {
+    if (editOutputTypesValue.has(key) && editOutputTypesValue.size > 1) editOutputTypesValue.delete(key);
+    else editOutputTypesValue.add(key);
+    renderEditOutputTypePicker();
+  });
+}
+
 addCategoryBtn.addEventListener("click", async () => {
   const name = (window.prompt("新しいカテゴリ名を入力してください") || "").trim();
   if (!name) return;
@@ -385,8 +420,7 @@ function showMemoView() {
   memoViewBrief.textContent = memo.brief;
 
   memoViewOutputs.innerHTML = "";
-  const availableOutputs = Object.keys(memo.outputs || {}).filter((key) => memo.outputs[key]);
-  for (const key of availableOutputs) {
+  for (const key of availableOutputTypes(memo)) {
     const outputBtn = document.createElement("button");
     outputBtn.className = "output-btn";
     outputBtn.textContent = OUTPUT_LABELS[key] || key;
@@ -422,8 +456,10 @@ memoEditBtn.addEventListener("click", () => {
   editBrief.value = memo.brief;
   editPriorityValue = memo.priority;
   editCategoriesValue = new Set(memo.categories || []);
+  editOutputTypesValue = new Set(memo.outputTypes || DEFAULT_OUTPUT_TYPES);
   renderEditPriorityPicker();
   renderEditCategoryPicker();
+  renderEditOutputTypePicker();
   editError.hidden = true;
 
   memoView.hidden = true;
@@ -441,6 +477,7 @@ memoEditForm.addEventListener("submit", async (e) => {
     brief: editBrief.value,
     priority: editPriorityValue,
     categories: [...editCategoriesValue],
+    outputTypes: [...editOutputTypesValue],
   };
 
   const res = await api(`/api/memos/${currentMemoId}`, {
@@ -497,6 +534,7 @@ form.addEventListener("submit", async (e) => {
     brief: document.getElementById("brief").value,
     priority: formPriority,
     categories: [...formCategories],
+    outputTypes: [...formOutputTypes],
   };
 
   const res = await api("/api/memos", {
@@ -515,8 +553,10 @@ form.addEventListener("submit", async (e) => {
   form.reset();
   formPriority = DEFAULT_PRIORITY;
   formCategories = new Set();
+  formOutputTypes = new Set(DEFAULT_OUTPUT_TYPES);
   renderPriorityPicker();
   renderCategoryPicker();
+  renderOutputTypePicker();
   addMemoModal.hidden = true;
   await fetchMemos();
 });
@@ -537,5 +577,6 @@ logoutBtn.addEventListener("click", async () => {
 });
 
 renderPriorityPicker();
+renderOutputTypePicker();
 fetchMemos();
 fetchCategories();

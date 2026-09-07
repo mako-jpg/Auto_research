@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { isAuthenticated } from "../lib/auth.js";
-import { isValidPriority, normalizeCategories } from "../lib/schema.js";
+import { isValidPriority, normalizeCategories, normalizeOutputTypes } from "../lib/schema.js";
 import { loadMemos, saveMemos } from "../lib/store.js";
 
 const DEFAULT_PRIORITY = 3;
@@ -42,6 +42,7 @@ export default async function handler(req, res) {
       brief,
       categories: normalizeCategories(payload.categories),
       priority,
+      outputTypes: normalizeOutputTypes(payload.outputTypes) || ["article", "video"],
       status: "pending",
       created_at: nowIso(),
       updated_at: nowIso(),

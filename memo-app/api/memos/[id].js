@@ -1,5 +1,5 @@
 import { isAuthenticated } from "../../lib/auth.js";
-import { isValidPriority, normalizeCategories } from "../../lib/schema.js";
+import { isValidPriority, normalizeCategories, normalizeOutputTypes } from "../../lib/schema.js";
 import { loadMemos, saveMemos } from "../../lib/store.js";
 
 const VALID_STATUSES = new Set(["pending", "researching", "drafted", "done", "archived"]);
@@ -34,9 +34,12 @@ export default async function handler(req, res) {
     if (payload.categories !== undefined) {
       payload.categories = normalizeCategories(payload.categories);
     }
+    if (payload.outputTypes !== undefined) {
+      payload.outputTypes = normalizeOutputTypes(payload.outputTypes);
+    }
 
     const memo = memos[index];
-    for (const key of ["title", "brief", "categories", "priority", "status", "outputs"]) {
+    for (const key of ["title", "brief", "categories", "priority", "outputTypes", "status", "outputs"]) {
       if (key in payload) memo[key] = payload[key];
     }
     memo.updated_at = new Date().toISOString().replace(/\.\d+Z$/, "Z");

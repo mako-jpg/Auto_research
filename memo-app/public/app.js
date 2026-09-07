@@ -2,6 +2,7 @@ const STATUS_LABELS = {
   pending: "未着手",
   researching: "リサーチ中",
   drafted: "下書き完了",
+  active: "定期実行中",
   done: "完了",
   archived: "アーカイブ",
 };
@@ -10,13 +11,21 @@ const OUTPUT_LABELS = { article: "記事下書き", video: "動画構成" };
 const OUTPUT_TYPE_KEYS = ["article", "video"];
 const DEFAULT_OUTPUT_TYPES = ["article", "video"];
 const DEFAULT_PRIORITY = 3;
-const FILTER_STATUSES = ["pending", "researching", "done"];
+const FILTER_STATUSES = ["pending", "researching", "active", "done"];
 const EDITABLE_STATUSES = ["pending", "done", "archived"];
+
+const RESEARCH_MODE_LABELS = { once: "単発", recurring: "定期的" };
+const RESEARCH_MODE_KEYS = ["once", "recurring"];
+const RECURRING_FREQUENCY_LABELS = { daily: "毎日", weekly: "毎週", monthly: "毎月" };
+const RECURRING_FREQUENCY_KEYS = ["daily", "weekly", "monthly"];
+const DEFAULT_RESEARCH_MODE = "once";
+const DEFAULT_RECURRING_FREQUENCY = "weekly";
 
 const STATUS_TAG_COLORS = {
   pending: "gray",
   researching: "yellow",
   drafted: "blue",
+  active: "purple",
   done: "green",
   archived: "brown",
 };
@@ -38,6 +47,9 @@ const logoutBtn = document.getElementById("logout-btn");
 const priorityPicker = document.getElementById("priority-picker");
 const categoryPicker = document.getElementById("category-picker");
 const outputTypePicker = document.getElementById("output-type-picker");
+const researchModePicker = document.getElementById("research-mode-picker");
+const recurringFrequencyBlock = document.getElementById("recurring-frequency-block");
+const recurringFrequencyPicker = document.getElementById("recurring-frequency-picker");
 const addCategoryBtn = document.getElementById("add-category-btn");
 const addMemoFab = document.getElementById("add-memo-fab");
 const addMemoModal = document.getElementById("add-memo-modal");
@@ -49,6 +61,7 @@ const researchEmpty = document.getElementById("research-empty");
 const outputBackBtn = document.getElementById("output-back-btn");
 const outputPageTitle = document.getElementById("output-page-title");
 const outputTabs = document.getElementById("output-tabs");
+const outputHistory = document.getElementById("output-history");
 const outputPageContent = document.getElementById("output-page-content");
 
 const memoModal = document.getElementById("memo-modal");
@@ -68,6 +81,9 @@ const editBrief = document.getElementById("edit-brief");
 const editPriorityPicker = document.getElementById("edit-priority-picker");
 const editCategoryPicker = document.getElementById("edit-category-picker");
 const editOutputTypePicker = document.getElementById("edit-output-type-picker");
+const editResearchModePicker = document.getElementById("edit-research-mode-picker");
+const editRecurringFrequencyBlock = document.getElementById("edit-recurring-frequency-block");
+const editRecurringFrequencyPicker = document.getElementById("edit-recurring-frequency-picker");
 const editError = document.getElementById("edit-error");
 
 let memos = [];
@@ -76,14 +92,19 @@ let activeFilter = "all";
 let formPriority = DEFAULT_PRIORITY;
 let formCategories = new Set();
 let formOutputTypes = new Set(DEFAULT_OUTPUT_TYPES);
+let formResearchMode = DEFAULT_RESEARCH_MODE;
+let formRecurringFrequency = DEFAULT_RECURRING_FREQUENCY;
 
 let currentMemoId = null;
 let editPriorityValue = DEFAULT_PRIORITY;
 let editCategoriesValue = new Set();
 let editOutputTypesValue = new Set(DEFAULT_OUTPUT_TYPES);
+let editResearchModeValue = DEFAULT_RESEARCH_MODE;
+let editRecurringFrequencyValue = DEFAULT_RECURRING_FREQUENCY;
 
 let currentOutputMemo = null;
 let currentOutputType = null;
+let currentOutputDate = null;
 
 async function api(path, options = {}) {
   const res = await fetch(path, { ...options, credentials: "same-origin" });
@@ -120,10 +141,42 @@ function renderOutputTabs() {
     btn.textContent = OUTPUT_LABELS[key] || key;
     btn.addEventListener("click", () => {
       currentOutputType = key;
+      currentOutputDate = null;
       renderOutputTabs();
+      renderOutputHistory();
       loadOutputContent();
     });
     outputTabs.appendChild(btn);
+  }
+}
+
+function renderOutputHistory() {
+  const memo = currentOutputMemo;
+  const dates = (memo.history || [])
+    .filter((entry) => entry.outputs && entry.outputs[currentOutputType])
+    .map((entry) => entry.date)
+    .sort()
+    .reverse();
+
+  outputHistory.innerHTML = "";
+  if (memo.researchMode !== "recurring" || dates.length === 0) {
+    outputHistory.hidden = true;
+    return;
+  }
+  outputHistory.hidden = false;
+
+  const chips = [["最新", null], ...dates.map((date) => [date, date])];
+  for (const [label, date] of chips) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "output-history-chip" + (currentOutputDate === date ? " active" : "");
+    btn.textContent = label;
+    btn.addEventListener("click", () => {
+      currentOutputDate = date;
+      renderOutputHistory();
+      loadOutputContent();
+    });
+    outputHistory.appendChild(btn);
   }
 }
 
@@ -139,7 +192,8 @@ function renderMarkdown(container, text) {
 async function loadOutputContent() {
   outputPageContent.textContent = "読み込み中…";
   try {
-    const res = await api(`/api/memos/${currentOutputMemo.id}/outputs/${currentOutputType}`);
+    const query = currentOutputDate ? `?date=${encodeURIComponent(currentOutputDate)}` : "";
+    const res = await api(`/api/memos/${currentOutputMemo.id}/outputs/${currentOutputType}${query}`);
     if (!res.ok) {
       outputPageContent.textContent = "まだ生成されていません。";
       return;
@@ -156,8 +210,10 @@ function openOutputPage(memo, type) {
 
   currentOutputMemo = memo;
   currentOutputType = types.includes(type) ? type : types[0];
+  currentOutputDate = null;
   outputPageTitle.textContent = memo.title;
   renderOutputTabs();
+  renderOutputHistory();
   showPage("output");
   loadOutputContent();
 }
@@ -220,6 +276,12 @@ function renderResearchCard(memo) {
   statusBadge.className = `badge tag-${STATUS_TAG_COLORS[memo.status] || "gray"}`;
   statusBadge.textContent = STATUS_LABELS[memo.status] || memo.status;
   meta.appendChild(statusBadge);
+  if (memo.researchMode === "recurring") {
+    const modeBadge = document.createElement("span");
+    modeBadge.className = "badge tag-purple";
+    modeBadge.textContent = `定期・${RECURRING_FREQUENCY_LABELS[memo.recurringFrequency] || ""}`;
+    meta.appendChild(modeBadge);
+  }
   for (const category of memo.categories || []) {
     const categoryEl = document.createElement("span");
     categoryEl.className = `tag tag-${categoryTagColor(category)}`;
@@ -227,6 +289,13 @@ function renderResearchCard(memo) {
     meta.appendChild(categoryEl);
   }
   card.appendChild(meta);
+
+  if (memo.researchMode === "recurring" && (memo.history || []).length > 0) {
+    const historyNote = document.createElement("p");
+    historyNote.className = "research-card-history-count";
+    historyNote.textContent = `履歴 ${memo.history.length}件`;
+    card.appendChild(historyNote);
+  }
 
   return card;
 }
@@ -330,6 +399,51 @@ function renderEditOutputTypePicker() {
   });
 }
 
+function renderSingleSelectChips(container, options, selectedValue, onSelect) {
+  container.innerHTML = "";
+  for (const [key, label] of options) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "category-btn" + (key === selectedValue ? " active" : "");
+    btn.textContent = label;
+    btn.addEventListener("click", () => onSelect(key));
+    container.appendChild(btn);
+  }
+}
+
+const RESEARCH_MODE_OPTIONS = RESEARCH_MODE_KEYS.map((k) => [k, RESEARCH_MODE_LABELS[k]]);
+const RECURRING_FREQUENCY_OPTIONS = RECURRING_FREQUENCY_KEYS.map((k) => [k, RECURRING_FREQUENCY_LABELS[k]]);
+
+function renderResearchModePicker() {
+  renderSingleSelectChips(researchModePicker, RESEARCH_MODE_OPTIONS, formResearchMode, (key) => {
+    formResearchMode = key;
+    renderResearchModePicker();
+    recurringFrequencyBlock.hidden = formResearchMode !== "recurring";
+  });
+}
+
+function renderRecurringFrequencyPicker() {
+  renderSingleSelectChips(recurringFrequencyPicker, RECURRING_FREQUENCY_OPTIONS, formRecurringFrequency, (key) => {
+    formRecurringFrequency = key;
+    renderRecurringFrequencyPicker();
+  });
+}
+
+function renderEditResearchModePicker() {
+  renderSingleSelectChips(editResearchModePicker, RESEARCH_MODE_OPTIONS, editResearchModeValue, (key) => {
+    editResearchModeValue = key;
+    renderEditResearchModePicker();
+    editRecurringFrequencyBlock.hidden = editResearchModeValue !== "recurring";
+  });
+}
+
+function renderEditRecurringFrequencyPicker() {
+  renderSingleSelectChips(editRecurringFrequencyPicker, RECURRING_FREQUENCY_OPTIONS, editRecurringFrequencyValue, (key) => {
+    editRecurringFrequencyValue = key;
+    renderEditRecurringFrequencyPicker();
+  });
+}
+
 addCategoryBtn.addEventListener("click", async () => {
   const name = (window.prompt("新しいカテゴリ名を入力してください") || "").trim();
   if (!name) return;
@@ -423,6 +537,14 @@ function showMemoView() {
   priorityBadge.textContent = `優先度 ${memo.priority}`;
   memoViewBadges.appendChild(priorityBadge);
 
+  const modeBadge = document.createElement("span");
+  modeBadge.className = "badge tag-purple";
+  modeBadge.textContent =
+    memo.researchMode === "recurring"
+      ? `定期・${RECURRING_FREQUENCY_LABELS[memo.recurringFrequency] || ""}`
+      : "単発";
+  memoViewBadges.appendChild(modeBadge);
+
   for (const category of memo.categories || []) {
     const categoryEl = document.createElement("span");
     categoryEl.className = `tag tag-${categoryTagColor(category)}`;
@@ -470,9 +592,14 @@ memoEditBtn.addEventListener("click", () => {
   editPriorityValue = memo.priority;
   editCategoriesValue = new Set(memo.categories || []);
   editOutputTypesValue = new Set(memo.outputTypes || DEFAULT_OUTPUT_TYPES);
+  editResearchModeValue = memo.researchMode || DEFAULT_RESEARCH_MODE;
+  editRecurringFrequencyValue = memo.recurringFrequency || DEFAULT_RECURRING_FREQUENCY;
   renderEditPriorityPicker();
   renderEditCategoryPicker();
   renderEditOutputTypePicker();
+  renderEditResearchModePicker();
+  renderEditRecurringFrequencyPicker();
+  editRecurringFrequencyBlock.hidden = editResearchModeValue !== "recurring";
   editError.hidden = true;
 
   memoView.hidden = true;
@@ -491,6 +618,8 @@ memoEditForm.addEventListener("submit", async (e) => {
     priority: editPriorityValue,
     categories: [...editCategoriesValue],
     outputTypes: [...editOutputTypesValue],
+    researchMode: editResearchModeValue,
+    recurringFrequency: editRecurringFrequencyValue,
   };
 
   const res = await api(`/api/memos/${currentMemoId}`, {
@@ -548,6 +677,8 @@ form.addEventListener("submit", async (e) => {
     priority: formPriority,
     categories: [...formCategories],
     outputTypes: [...formOutputTypes],
+    researchMode: formResearchMode,
+    recurringFrequency: formRecurringFrequency,
   };
 
   const res = await api("/api/memos", {
@@ -567,9 +698,14 @@ form.addEventListener("submit", async (e) => {
   formPriority = DEFAULT_PRIORITY;
   formCategories = new Set();
   formOutputTypes = new Set(DEFAULT_OUTPUT_TYPES);
+  formResearchMode = DEFAULT_RESEARCH_MODE;
+  formRecurringFrequency = DEFAULT_RECURRING_FREQUENCY;
   renderPriorityPicker();
   renderCategoryPicker();
   renderOutputTypePicker();
+  renderResearchModePicker();
+  renderRecurringFrequencyPicker();
+  recurringFrequencyBlock.hidden = true;
   addMemoModal.hidden = true;
   await fetchMemos();
 });
@@ -591,5 +727,7 @@ logoutBtn.addEventListener("click", async () => {
 
 renderPriorityPicker();
 renderOutputTypePicker();
+renderResearchModePicker();
+renderRecurringFrequencyPicker();
 fetchMemos();
 fetchCategories();

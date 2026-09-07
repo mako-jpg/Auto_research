@@ -48,10 +48,21 @@ function outputPathname(memoId, type) {
   return `outputs/${memoId}/${type}.md`;
 }
 
-export async function loadOutput(memoId, type) {
-  return getBlobText(outputPathname(memoId, type));
+function datedOutputPathname(memoId, type, date) {
+  return `outputs/${memoId}/${type}/${date}.md`;
 }
 
-export async function saveOutput(memoId, type, content) {
+export async function loadOutput(memoId, type, date) {
+  const pathname = date ? datedOutputPathname(memoId, type, date) : outputPathname(memoId, type);
+  return getBlobText(pathname);
+}
+
+// When `date` is given (recurring memos), the dated snapshot is kept
+// permanently for history, and the plain (undated) "latest" copy is also
+// overwritten so a plain GET without ?date= always resolves to the newest run.
+export async function saveOutput(memoId, type, content, date) {
+  if (date) {
+    await putBlobText(datedOutputPathname(memoId, type, date), content, "text/markdown");
+  }
   await putBlobText(outputPathname(memoId, type), content, "text/markdown");
 }

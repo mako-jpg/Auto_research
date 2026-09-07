@@ -12,6 +12,19 @@ export function normalizeOutputTypes(input) {
   return unique.length > 0 ? unique : ["article"];
 }
 
+const VALID_RESEARCH_MODES = ["once", "recurring"];
+const VALID_RECURRING_FREQUENCIES = ["daily", "weekly", "monthly"];
+
+export function normalizeResearchMode(input) {
+  if (input === undefined) return undefined;
+  return VALID_RESEARCH_MODES.includes(input) ? input : "once";
+}
+
+export function normalizeRecurringFrequency(input) {
+  if (input === undefined) return undefined;
+  return VALID_RECURRING_FREQUENCIES.includes(input) ? input : "weekly";
+}
+
 export function normalizeCategories(input) {
   const list = Array.isArray(input) ? input : [];
   const seen = new Set();

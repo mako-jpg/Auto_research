@@ -40,6 +40,7 @@
         <h2 id="output-page-title"></h2>
       </div>
       <div class="output-tabs" id="output-tabs"></div>
+      <div class="output-history" id="output-history" hidden></div>
       <div id="output-page-content" class="output-content"></div>
     </div>
   </main>
@@ -73,6 +74,14 @@
         <div class="field-block">
           <span class="field-label">生成する項目</span>
           <div class="category-picker" id="output-type-picker"></div>
+        </div>
+        <div class="field-block">
+          <span class="field-label">リサーチ方法</span>
+          <div class="category-picker" id="research-mode-picker"></div>
+        </div>
+        <div class="field-block" id="recurring-frequency-block" hidden>
+          <span class="field-label">頻度</span>
+          <div class="category-picker" id="recurring-frequency-picker"></div>
         </div>
         <p id="form-error" class="error" hidden></p>
         <button type="submit">メモを追加</button>
@@ -121,6 +130,14 @@
         <div class="field-block">
           <span class="field-label">生成する項目</span>
           <div class="category-picker" id="edit-output-type-picker"></div>
+        </div>
+        <div class="field-block">
+          <span class="field-label">リサーチ方法</span>
+          <div class="category-picker" id="edit-research-mode-picker"></div>
+        </div>
+        <div class="field-block" id="edit-recurring-frequency-block" hidden>
+          <span class="field-label">頻度</span>
+          <div class="category-picker" id="edit-recurring-frequency-picker"></div>
         </div>
         <p id="edit-error" class="error" hidden></p>
         <div class="memo-actions">

@@ -9,9 +9,13 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { id, type } = req.query;
+  const { id, type, date } = req.query;
   if (!VALID_TYPES.has(type)) {
     res.status(400).json({ error: `type must be one of ${[...VALID_TYPES].join(", ")}` });
+    return;
+  }
+  if (date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    res.status(400).json({ error: "date must be in YYYY-MM-DD format" });
     return;
   }
 
@@ -23,7 +27,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "GET") {
-    const content = await loadOutput(id, type);
+    const content = await loadOutput(id, type, date);
     if (content === null) {
       res.status(404).json({ error: "output not found" });
       return;
@@ -41,7 +45,7 @@ export default async function handler(req, res) {
       res.status(400).json({ error: "request body must not be empty (send it with a text/* Content-Type)" });
       return;
     }
-    await saveOutput(id, type, body);
+    await saveOutput(id, type, body, date);
     res.status(200).json({ ok: true });
     return;
   }

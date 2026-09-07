@@ -1,6 +1,12 @@
 import crypto from "node:crypto";
 import { isAuthenticated } from "../lib/auth.js";
-import { isValidPriority, normalizeCategories, normalizeOutputTypes } from "../lib/schema.js";
+import {
+  isValidPriority,
+  normalizeCategories,
+  normalizeOutputTypes,
+  normalizeResearchMode,
+  normalizeRecurringFrequency,
+} from "../lib/schema.js";
 import { loadMemos, saveMemos } from "../lib/store.js";
 
 const DEFAULT_PRIORITY = 3;
@@ -43,10 +49,15 @@ export default async function handler(req, res) {
       categories: normalizeCategories(payload.categories),
       priority,
       outputTypes: normalizeOutputTypes(payload.outputTypes) || ["article", "video"],
+      researchMode: normalizeResearchMode(payload.researchMode) || "once",
+      recurringFrequency: normalizeRecurringFrequency(payload.recurringFrequency) || "weekly",
       status: "pending",
       created_at: nowIso(),
       updated_at: nowIso(),
       outputs: {},
+      history: [],
+      last_processed_at: null,
+      slug: null,
     };
 
     const memos = await loadMemos();

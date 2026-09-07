@@ -185,6 +185,7 @@ input:focus, textarea:focus, select:focus {
 }
 
 .field-block { display: flex; flex-direction: column; gap: 10px; }
+.field-block[hidden] { display: none; }
 .field-label { font-size: 0.85rem; font-weight: 500; color: var(--muted); }
 
 button {
@@ -426,6 +427,12 @@ button.danger:hover { background: var(--tag-red-bg); opacity: 1; }
   overflow: hidden;
 }
 
+.research-card-history-count {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .modal {
   position: fixed;
   inset: 0;
@@ -522,6 +529,33 @@ button.danger:hover { background: var(--tag-red-bg); opacity: 1; }
   height: 2px;
   background: var(--accent);
 }
+
+.output-history {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  margin: 0 -2px;
+  padding: 0 2px;
+}
+.output-history[hidden] { display: none; }
+.output-history::-webkit-scrollbar { display: none; }
+.output-history-chip {
+  flex-shrink: 0;
+  white-space: nowrap;
+  background: var(--hover-bg);
+  color: var(--text);
+  border: none;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.output-history-chip:hover { opacity: 0.8; }
+.output-history-chip.active { background: var(--accent); color: var(--accent-contrast); font-weight: 600; }
 
 .output-content {
   overflow-y: auto;

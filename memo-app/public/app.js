@@ -127,11 +127,29 @@ function renderOutputTabs() {
   }
 }
 
+function escapeHtml(str) {
+  const chars = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  return str.replace(/[&<>"']/g, (ch) => chars[ch]);
+}
+
+function linkifyText(text) {
+  return escapeHtml(text).replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+    let trail = "";
+    while (url && /[.,;:!?)\]}]$/.test(url)) {
+      trail = url.slice(-1) + trail;
+      url = url.slice(0, -1);
+    }
+    if (!url) return trail;
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${trail}`;
+  });
+}
+
 async function loadOutputContent() {
   outputPageContent.textContent = "読み込み中…";
   try {
     const res = await api(`/api/memos/${currentOutputMemo.id}/outputs/${currentOutputType}`);
-    outputPageContent.textContent = res.ok ? await res.text() : "まだ生成されていません。";
+    const text = res.ok ? await res.text() : "まだ生成されていません。";
+    outputPageContent.innerHTML = linkifyText(text);
   } catch {
     outputPageContent.textContent = "読み込みに失敗しました。";
   }

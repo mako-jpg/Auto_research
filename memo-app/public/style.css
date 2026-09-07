@@ -519,9 +519,15 @@ button.danger:hover { background: var(--tag-red-bg); opacity: 1; }
 .output-content {
   overflow-y: auto;
   white-space: pre-wrap;
+  word-break: break-word;
   font-family: inherit;
   font-size: 0.98rem;
   line-height: 1.85;
   margin: 0;
   padding-bottom: 24px;
 }
+.output-content a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.output-content a:hover { opacity: 0.8; }

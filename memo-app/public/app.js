@@ -133,9 +133,13 @@ function escapeHtml(str) {
 }
 
 function linkifyText(text) {
-  return escapeHtml(text).replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+  // Restricted to ASCII URL characters (no parens/quotes/brackets) rather than
+  // "anything but whitespace" — Japanese text has no spaces between words, so
+  // a whitespace-terminated match would swallow the rest of the sentence/
+  // paragraph following a URL as if it were part of the link.
+  return escapeHtml(text).replace(/https?:\/\/[A-Za-z0-9\-._~:/?#@!$&*+,;=%]+/g, (url) => {
     let trail = "";
-    while (url && /[.,;:!?)\]}]$/.test(url)) {
+    while (url && /[.,;:!?]$/.test(url)) {
       trail = url.slice(-1) + trail;
       url = url.slice(0, -1);
     }

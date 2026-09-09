@@ -14,9 +14,9 @@
 
 ## メモアプリのアーキテクチャ（`memo-app/`）
 
-- `api/` — Vercel Serverless Functions（Node.js）。`login.js`（人間のログイン）/ `logout.js` / `memos.js`（一覧取得・作成）/ `memos/[id].js`（更新・削除）/ `memos/[id]/outputs/[type].js`（生成物本文のアップロード・取得。`type` は `article`/`video`。リサーチ内容はWeb UI上のアップロード対象ではない。クエリパラメータ `?date=YYYY-MM-DD` を付けると、定期メモのその日付時点の生成物を個別に読み書きできる。省略時は常に「最新」を読み書きする）/ `categories.js`（カテゴリ一覧取得・追加）。
-- `lib/store.js` — Vercel Blob（`memos.json`、`categories.json`、`outputs/<id>/<type>.md` の「最新」生成物本文、定期メモの過去分は `outputs/<id>/<type>/<date>.md`）への読み書き。
-- `lib/schema.js` — 優先度（1〜5の整数）・カテゴリ配列・生成する項目（`outputTypes`）・リサーチ方法（`researchMode`/`recurringFrequency`）のバリデーション共通処理。
+- `api/` — Vercel Serverless Functions（Node.js）。`login.js`（人間のログイン）/ `logout.js` / `memos.js`（一覧取得・作成）/ `memos/[id].js`（更新・削除）/ `memos/[id]/outputs/[type].js`（生成物本文のアップロード・取得。`type` は `article`/`video`。リサーチ内容はWeb UI上のアップロード対象ではない。クエリパラメータ `?date=YYYY-MM-DD` を付けると、定期メモのその日付時点の生成物を個別に読み書きできる。省略時は常に「最新」を読み書きする）/ `memos/[id]/screenshot.js`（メモに添付したスクリーンショット画像のアップロード（PUT、body は生の画像バイナリ、`Content-Type: image/*`）・取得（GET）・削除（DELETE））/ `categories.js`（カテゴリ一覧取得・追加）。
+- `lib/store.js` — Vercel Blob（`memos.json`、`categories.json`、`outputs/<id>/<type>.md` の「最新」生成物本文、定期メモの過去分は `outputs/<id>/<type>/<date>.md`、スクリーンショット画像は `screenshots/<id>`）への読み書き。
+- `lib/schema.js` — 優先度（1〜5の整数）・カテゴリ配列・生成する項目（`outputTypes`）・リサーチ方法（`researchMode`/`recurringFrequency`）・参照URL（`sourceUrl`）のバリデーション共通処理。
 - `lib/auth.js` — 認証。**2種類の独立した資格情報**を使う:
   - `ADMIN_EMAIL` / `ADMIN_PASSWORD` — 人間がブラウザからログインするための資格情報。ログインするとセッションCookieが発行される。
   - `PIPELINE_TOKEN` — Claude CodeのRoutine（後述）がAPIを叩くための専用トークン。`Authorization: Bearer <PIPELINE_TOKEN>` ヘッダで認証する。人間用パスワードとは別物なので、片方が漏れてももう片方には影響しない。
@@ -41,6 +41,8 @@
       "status": "pending",
       "created_at": "ISO8601",
       "updated_at": "ISO8601",
+      "sourceUrl": null,
+      "screenshot": false,
       "outputs": {},
       "history": [],
       "last_processed_at": null,
@@ -53,6 +55,8 @@
 `priority` は1〜5の整数（デフォルト3、大きいほど優先度が高い）。`categories` はユーザーが `categories.json`（同じくVercel Blob上、`GET/POST /api/categories` で管理）に登録した名前の中から選んだもの。
 
 `outputTypes` はそのメモについてAIに生成させる項目（`"article"`＝記事下書き / `"video"`＝動画構成、いずれか1つ以上。デフォルトは両方）。ユーザーがメモ作成・編集フォームのボタンで選ぶ。**`"research"`（リサーチ）は選択肢ではない** — リサーチはパイプラインが常に内部的に行う下調べのステップであり、`output/<slug>/research.md` としてリポジトリには残すが、Web UI上の生成物（`outputs`）としては扱わない・アップロードしない。
+
+`sourceUrl` はユーザーが貼り付けた参照URL（InstagramやX、YouTubeの投稿URLなど、任意）。`screenshot` はユーザーが添付したスクリーンショット画像が存在するかを表す真偽値で、実際の画像本体はこのフィールドには入らず `GET/PUT/DELETE /api/memos/<id>/screenshot` でVercel Blob（`screenshots/<id>`）に読み書きされる（`screenshot` フィールド自体はこのエンドポイント経由でのみ更新され、`PUT /api/memos/<id>` の汎用更新では変更できない）。どちらもリサーチの「種」として使われる — パイプラインはこれらがあれば、まずそのスクリーンショット/URLの中身を把握してから、それを起点にリサーチする（詳細は `SKILL.md` と `.claude/agents/researcher.md` を参照）。
 
 `researchMode` は `"once"`（単発。デフォルト）または `"recurring"`（定期的）。`recurringFrequency` は `researchMode: "recurring"` のときだけ意味を持ち、`"daily"`（毎日）/ `"weekly"`（毎週。デフォルト）/ `"monthly"`（毎月）のいずれか。ユーザーがメモ作成・編集フォームのボタンで選ぶ。
 

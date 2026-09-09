@@ -1,6 +1,6 @@
 ---
 name: research-pipeline
-description: Fetches pending entries (plus due recurring entries whose researchMode is "recurring") from the deployed memo app's API (memo-app, hosted on Vercel), and for each one runs the researcher agent (always) followed by article-writer and/or video-composer (whichever the memo's outputTypes selects), saving a research brief, and a Note article draft and/or short-video structure, under output/, then updates the memo's status/history via the API and commits the generated files. Recurring memos stay active and are reprocessed each time their frequency comes due, building up a dated history instead of a single one-off draft. Use when asked to process memos, run the research pipeline, or when a scheduled routine fires to check for new or due memo entries.
+description: Fetches pending entries (plus due recurring entries whose researchMode is "recurring") from the deployed memo app's API (memo-app, hosted on Vercel), and for each one runs the researcher agent (always) followed by article-writer and/or video-composer (whichever the memo's outputTypes selects), saving a research brief, and a Note article draft and/or short-video structure, under output/, then updates the memo's status/history via the API and commits the generated files. A memo may seed the researcher with an attached screenshot image and/or a source URL (Instagram/X/YouTube/etc.) instead of or alongside its text brief, in which case the researcher identifies what that seed shows first and researches broadly around it. Recurring memos stay active and are reprocessed each time their frequency comes due, building up a dated history instead of a single one-off draft. Use when asked to process memos, run the research pipeline, or when a scheduled routine fires to check for new or due memo entries.
 ---
 
 # Research → Note記事 → ショート動画構成 パイプライン
@@ -17,8 +17,10 @@ description: Fetches pending entries (plus due recurring entries whose researchM
   - `GET /api/memos` — 全メモの一覧を取得
   - `PUT /api/memos/<id>` — 指定メモを部分更新（`status` / `outputs` / `history` / `last_processed_at` / `slug` など）
   - `PUT /api/memos/<id>/outputs/<type>` — 生成物の本文（Markdown）をアップロードする（`type` は `article` / `video` のみ。**`research` は含まない** — リサーチはパイプラインが常に内部的に行う下調べであり、Web UI上の生成物としては扱わない）。body に生ファイル内容をそのまま送る。メモアプリのWeb UIはこれを読んでその場で表示する。**定期メモの場合はクエリパラメータ `?date=YYYY-MM-DD` を付けて、その回の実行日付でアップロードする**（サーバー側で「最新」のコピーも自動的に同期されるので、通常のGET/日付なしのアップロードは常に最新を指す）。GETも同様に `?date=` で過去分を個別に取得できる。
+  - `GET /api/memos/<id>/screenshot` — メモに添付されたスクリーンショット画像のバイナリを取得する（`memo.screenshot` が `true` のときだけ存在する）。
 - 各メモの `outputTypes` フィールド（`["article"]` や `["article","video"]` など）が、そのメモについて生成すべき項目を指定する。ユーザーがメモ作成・編集画面のボタンで選ぶ。**リサーチ（researcherエージェント）は選択肢に関係なく毎回必ず実行する**（記事・動画の元になる下調べのため）。
 - 各メモの `researchMode` フィールドが `"once"`（単発）か `"recurring"`（定期的）かを表す。定期的の場合 `recurringFrequency` が `"daily"`/`"weekly"`/`"monthly"` のいずれかで頻度を表す。詳しい扱いは下記手順を参照。
+- 各メモは `sourceUrl`（参照URL。InstagramやX、YouTubeの投稿URLなど）と `screenshot`（スクリーンショット画像が添付されているかの真偽値）を持つ場合がある。どちらか片方だけ・両方・どちらも無し、いずれもあり得る。researcherエージェントへの入力に必ず含めること（下記手順参照）。
 
 ## 手順
 
@@ -44,13 +46,19 @@ description: Fetches pending entries (plus due recurring entries whose researchM
 
    c. メモの `outputTypes` を見て、`article` / `video` のうちどれを生成するか決める（フィールドが無い古いメモは両方とも生成する）。
 
-   d. 上記ディレクトリに保存する想定で、Agent tool（サブエージェント）を **この順番で** 呼び出す。前段の成果物（ファイル内容そのもの）を次のサブエージェントへの入力プロンプトに含めること。
+   d. `memo.screenshot` が `true` の場合、`GET {本番URL}/api/memos/<id>/screenshot` で画像を取得し、`output/<slug>/screenshot.<拡張子>` に保存する（拡張子はレスポンスの `Content-Type` から判断: `image/png`→`png`、`image/jpeg`→`jpg`、それ以外は `png` として保存）:
+      ```bash
+      curl -s -H "Authorization: Bearer $PIPELINE_TOKEN" "$BASE_URL/api/memos/<id>/screenshot" -o output/<slug>/screenshot.png
+      ```
+      このファイルパスは次の researcher 呼び出しに渡す（researcherがReadツールで画像を見る）。
 
-      1. **researcher** エージェント — `outputTypes` の内容に関わらず**必ず**呼び出す。メモの `title` / `brief` / `categories` を渡し、`research.md` に research brief を書かせる（記事・動画の元ネタ。Web UIにはアップロードしない、リポジトリへの記録用）。
+   e. 上記ディレクトリに保存する想定で、Agent tool（サブエージェント）を **この順番で** 呼び出す。前段の成果物（ファイル内容そのもの）を次のサブエージェントへの入力プロンプトに含めること。
+
+      1. **researcher** エージェント — `outputTypes` の内容に関わらず**必ず**呼び出す。メモの `title` / `brief` / `categories` に加えて、あれば手順dで保存したスクリーンショットのファイルパスと `sourceUrl`（画像・URLどちらも無ければ渡さなくてよい）を渡し、`research.md` に research brief を書かせる（記事・動画の元ネタ。Web UIにはアップロードしない、リポジトリへの記録用）。researcherはスクリーンショット/URLがあればまずその内容を把握し、そこを起点に周辺情報まで広く深く調べる（詳細は `.claude/agents/researcher.md` 参照）。`brief` が空でもスクリーンショット/URLがあれば処理を続けてよい（両方無くbriefだけの場合は従来通り）。
       2. **article-writer** エージェント — `outputTypes` に `"article"` が含まれる場合のみ呼び出す。上記 research brief の内容とメモの `title` / `brief` を渡し、`article.md` に記事下書きを書かせる。
       3. **video-composer** エージェント — `outputTypes` に `"video"` が含まれる場合のみ呼び出す。article-writer を呼んでいれば article の内容を、呼んでいなければ research brief の内容を渡し、`video-structure.md` にショート動画構成を書かせる。
 
-   e. 生成した（`research.md` 以外の）ファイルの中身を、それぞれメモアプリにアップロードする（メモアプリのWeb UIから直接読めるようにするため。`research.md` はアップロードしない）。**定期メモの場合は `?date=<today>` を付ける**（単発は付けない）:
+   f. 生成した（`research.md`・`screenshot.<拡張子>` 以外の）ファイルの中身を、それぞれメモアプリにアップロードする（メモアプリのWeb UIから直接読めるようにするため。`research.md`・スクリーンショットはアップロードしない — スクリーンショットは元々Web UI側にあるものを取得しただけ）。**定期メモの場合は `?date=<today>` を付ける**（単発は付けない）:
       ```bash
       # 単発の場合の例（article-writer を呼んだ場合）
       curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: text/markdown" \
@@ -60,7 +68,7 @@ description: Fetches pending entries (plus due recurring entries whose researchM
         --data-binary @output/<slug>/2026-09-07/video-structure.md "$BASE_URL/api/memos/<id>/outputs/video?date=2026-09-07"
       ```
 
-   f. アップロードが終わったら、`PUT {本番URL}/api/memos/<id>` を叩いてメモの状態を更新する。`outputs` には実際に生成・アップロードした種類だけを `true` で含める（`research` は含めない）。
+   g. アップロードが終わったら、`PUT {本番URL}/api/memos/<id>` を叩いてメモの状態を更新する。`outputs` には実際に生成・アップロードした種類だけを `true` で含める（`research` は含めない）。
       - **単発**の場合:
         ```bash
         curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: application/json" \
@@ -75,7 +83,7 @@ description: Fetches pending entries (plus due recurring entries whose researchM
         ```
       （Web UIはこの `outputs` のキーの有無で「見る」ボタンの表示を、`history` の中身で過去の実行を日付付きで一覧表示する）
 
-6. すべて処理し終えたら、`output/` 配下の新規ファイルを git add / commit し、`git push origin claude/research-article-automation-u3efhq` で明示的にこのブランチへ push する（リポジトリ内にも下書きの記録を残すため。`memos.json` はAPI経由で既に更新済みなのでコミット対象ではない）。push が失敗した場合は理由（権限不足など）を最終報告に必ず含める。
+6. すべて処理し終えたら、`output/` 配下の新規ファイル（`.md` のみ。**`screenshot.<拡張子>` はリポジトリにコミットしない** — 元データはVercel Blob側に既にあり、画像バイナリを毎回コミットするとリポジトリが肥大化するため、処理が終わったら削除するかgit addの対象から外す）を git add / commit し、`git push origin claude/research-article-automation-u3efhq` で明示的にこのブランチへ push する（リポジトリ内にも下書きの記録を残すため。`memos.json` はAPI経由で既に更新済みなのでコミット対象ではない）。push が失敗した場合は理由（権限不足など）を最終報告に必ず含める。
 
 7. 最後に日本語で簡潔に報告する: 処理したメモのタイトル一覧（単発/定期の別も添える）、それぞれ生成した出力ファイルへのパス（`research.md` は毎回、`article.md`/`video-structure.md` はそのメモの `outputTypes` で選ばれたものだけ）、そして必ず「これは下書きです。公開前に内容を確認してください」と伝える。
 

@@ -50,6 +50,10 @@ const outputTypePicker = document.getElementById("output-type-picker");
 const researchModePicker = document.getElementById("research-mode-picker");
 const recurringFrequencyBlock = document.getElementById("recurring-frequency-block");
 const recurringFrequencyPicker = document.getElementById("recurring-frequency-picker");
+const sourceUrlInput = document.getElementById("source-url");
+const screenshotInput = document.getElementById("screenshot-input");
+const screenshotPreview = document.getElementById("screenshot-preview");
+const screenshotClearBtn = document.getElementById("screenshot-clear-btn");
 const addCategoryBtn = document.getElementById("add-category-btn");
 const addMemoFab = document.getElementById("add-memo-fab");
 const addMemoModal = document.getElementById("add-memo-modal");
@@ -70,6 +74,8 @@ const memoModalClose = document.getElementById("memo-modal-close");
 const memoView = document.getElementById("memo-view");
 const memoViewBadges = document.getElementById("memo-view-badges");
 const memoViewBrief = document.getElementById("memo-view-brief");
+const memoViewSourceUrl = document.getElementById("memo-view-source-url");
+const memoViewScreenshot = document.getElementById("memo-view-screenshot");
 const memoViewOutputs = document.getElementById("memo-view-outputs");
 const memoViewStatus = document.getElementById("memo-view-status");
 const memoEditBtn = document.getElementById("memo-edit-btn");
@@ -80,6 +86,10 @@ const editTitle = document.getElementById("edit-title");
 const editBrief = document.getElementById("edit-brief");
 const editPriorityPicker = document.getElementById("edit-priority-picker");
 const editCategoryPicker = document.getElementById("edit-category-picker");
+const editSourceUrlInput = document.getElementById("edit-source-url");
+const editScreenshotInput = document.getElementById("edit-screenshot-input");
+const editScreenshotPreview = document.getElementById("edit-screenshot-preview");
+const editScreenshotClearBtn = document.getElementById("edit-screenshot-clear-btn");
 const editOutputTypePicker = document.getElementById("edit-output-type-picker");
 const editResearchModePicker = document.getElementById("edit-research-mode-picker");
 const editRecurringFrequencyBlock = document.getElementById("edit-recurring-frequency-block");
@@ -94,6 +104,7 @@ let formCategories = new Set();
 let formOutputTypes = new Set(DEFAULT_OUTPUT_TYPES);
 let formResearchMode = DEFAULT_RESEARCH_MODE;
 let formRecurringFrequency = DEFAULT_RECURRING_FREQUENCY;
+let formScreenshotFile = null;
 
 let currentMemoId = null;
 let editPriorityValue = DEFAULT_PRIORITY;
@@ -101,6 +112,8 @@ let editCategoriesValue = new Set();
 let editOutputTypesValue = new Set(DEFAULT_OUTPUT_TYPES);
 let editResearchModeValue = DEFAULT_RESEARCH_MODE;
 let editRecurringFrequencyValue = DEFAULT_RECURRING_FREQUENCY;
+let editScreenshotFile = null;
+let editScreenshotRemove = false;
 
 let currentOutputMemo = null;
 let currentOutputType = null;
@@ -444,6 +457,51 @@ function renderEditRecurringFrequencyPicker() {
   });
 }
 
+function resetScreenshotField(fileInput, previewEl, clearBtn) {
+  fileInput.value = "";
+  previewEl.src = "";
+  previewEl.hidden = true;
+  clearBtn.hidden = true;
+}
+
+async function uploadScreenshot(memoId, file) {
+  await api(`/api/memos/${memoId}/screenshot`, {
+    method: "PUT",
+    headers: { "Content-Type": file.type || "application/octet-stream" },
+    body: file,
+  });
+}
+
+screenshotInput.addEventListener("change", () => {
+  const file = screenshotInput.files[0];
+  if (!file) return;
+  formScreenshotFile = file;
+  screenshotPreview.src = URL.createObjectURL(file);
+  screenshotPreview.hidden = false;
+  screenshotClearBtn.hidden = false;
+});
+
+screenshotClearBtn.addEventListener("click", () => {
+  formScreenshotFile = null;
+  resetScreenshotField(screenshotInput, screenshotPreview, screenshotClearBtn);
+});
+
+editScreenshotInput.addEventListener("change", () => {
+  const file = editScreenshotInput.files[0];
+  if (!file) return;
+  editScreenshotFile = file;
+  editScreenshotRemove = false;
+  editScreenshotPreview.src = URL.createObjectURL(file);
+  editScreenshotPreview.hidden = false;
+  editScreenshotClearBtn.hidden = false;
+});
+
+editScreenshotClearBtn.addEventListener("click", () => {
+  editScreenshotFile = null;
+  editScreenshotRemove = true;
+  resetScreenshotField(editScreenshotInput, editScreenshotPreview, editScreenshotClearBtn);
+});
+
 addCategoryBtn.addEventListener("click", async () => {
   const name = (window.prompt("新しいカテゴリ名を入力してください") || "").trim();
   if (!name) return;
@@ -554,6 +612,21 @@ function showMemoView() {
 
   memoViewBrief.textContent = memo.brief;
 
+  if (memo.sourceUrl) {
+    memoViewSourceUrl.href = memo.sourceUrl;
+    memoViewSourceUrl.textContent = `参照URL: ${memo.sourceUrl}`;
+    memoViewSourceUrl.hidden = false;
+  } else {
+    memoViewSourceUrl.hidden = true;
+  }
+
+  if (memo.screenshot) {
+    memoViewScreenshot.src = `/api/memos/${memo.id}/screenshot`;
+    memoViewScreenshot.hidden = false;
+  } else {
+    memoViewScreenshot.hidden = true;
+  }
+
   memoViewOutputs.innerHTML = "";
   for (const key of availableOutputTypes(memo)) {
     const outputBtn = document.createElement("button");
@@ -589,6 +662,7 @@ memoEditBtn.addEventListener("click", () => {
 
   editTitle.value = memo.title;
   editBrief.value = memo.brief;
+  editSourceUrlInput.value = memo.sourceUrl || "";
   editPriorityValue = memo.priority;
   editCategoriesValue = new Set(memo.categories || []);
   editOutputTypesValue = new Set(memo.outputTypes || DEFAULT_OUTPUT_TYPES);
@@ -600,6 +674,16 @@ memoEditBtn.addEventListener("click", () => {
   renderEditResearchModePicker();
   renderEditRecurringFrequencyPicker();
   editRecurringFrequencyBlock.hidden = editResearchModeValue !== "recurring";
+
+  editScreenshotFile = null;
+  editScreenshotRemove = false;
+  resetScreenshotField(editScreenshotInput, editScreenshotPreview, editScreenshotClearBtn);
+  if (memo.screenshot) {
+    editScreenshotPreview.src = `/api/memos/${memo.id}/screenshot`;
+    editScreenshotPreview.hidden = false;
+    editScreenshotClearBtn.hidden = false;
+  }
+
   editError.hidden = true;
 
   memoView.hidden = true;
@@ -615,6 +699,7 @@ memoEditForm.addEventListener("submit", async (e) => {
   const payload = {
     title: editTitle.value,
     brief: editBrief.value,
+    sourceUrl: editSourceUrlInput.value,
     priority: editPriorityValue,
     categories: [...editCategoriesValue],
     outputTypes: [...editOutputTypesValue],
@@ -633,6 +718,12 @@ memoEditForm.addEventListener("submit", async (e) => {
     editError.textContent = data.error || "保存に失敗しました。";
     editError.hidden = false;
     return;
+  }
+
+  if (editScreenshotFile) {
+    await uploadScreenshot(currentMemoId, editScreenshotFile);
+  } else if (editScreenshotRemove) {
+    await api(`/api/memos/${currentMemoId}/screenshot`, { method: "DELETE" });
   }
 
   await fetchMemos();
@@ -674,6 +765,8 @@ form.addEventListener("submit", async (e) => {
   const payload = {
     title: document.getElementById("title").value,
     brief: document.getElementById("brief").value,
+    sourceUrl: sourceUrlInput.value,
+    willAttachScreenshot: Boolean(formScreenshotFile),
     priority: formPriority,
     categories: [...formCategories],
     outputTypes: [...formOutputTypes],
@@ -694,12 +787,19 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
+  const memo = await res.json();
+  if (formScreenshotFile) {
+    await uploadScreenshot(memo.id, formScreenshotFile);
+  }
+
   form.reset();
   formPriority = DEFAULT_PRIORITY;
   formCategories = new Set();
   formOutputTypes = new Set(DEFAULT_OUTPUT_TYPES);
   formResearchMode = DEFAULT_RESEARCH_MODE;
   formRecurringFrequency = DEFAULT_RECURRING_FREQUENCY;
+  formScreenshotFile = null;
+  resetScreenshotField(screenshotInput, screenshotPreview, screenshotClearBtn);
   renderPriorityPicker();
   renderCategoryPicker();
   renderOutputTypePicker();

@@ -59,9 +59,19 @@
           <input type="text" id="title" name="title" placeholder="例: 生成AIの著作権問題まとめ" required>
         </label>
         <label>
-          リサーチしてほしい内容 <span class="required">必須</span>
-          <textarea id="brief" name="brief" rows="8" placeholder="何を、どんな角度で調べて記事にしてほしいか書く"></textarea>
+          リサーチしてほしい内容
+          <textarea id="brief" name="brief" rows="6" placeholder="何を、どんな角度で調べて記事にしてほしいか書く（画像やURLを添付する場合は空欄でも可）"></textarea>
         </label>
+        <label>
+          参照URL（Instagram・X・YouTubeなど）
+          <input type="url" id="source-url" placeholder="https://...">
+        </label>
+        <div class="field-block">
+          <span class="field-label">スクリーンショットを添付</span>
+          <input type="file" id="screenshot-input" accept="image/*">
+          <img id="screenshot-preview" class="screenshot-preview" hidden>
+          <button type="button" id="screenshot-clear-btn" class="secondary" hidden>画像を削除</button>
+        </div>
         <div class="field-block">
           <span class="field-label">優先度</span>
           <div class="priority-picker" id="priority-picker"></div>
@@ -99,6 +109,8 @@
       <div id="memo-view">
         <div class="memo-meta" id="memo-view-badges"></div>
         <p id="memo-view-brief" class="memo-brief"></p>
+        <a id="memo-view-source-url" class="source-url-link" target="_blank" rel="noopener noreferrer" hidden></a>
+        <img id="memo-view-screenshot" class="memo-view-screenshot" hidden>
         <div class="memo-outputs" id="memo-view-outputs"></div>
         <div class="field-block">
           <span class="field-label">ステータス</span>
@@ -116,9 +128,19 @@
           <input type="text" id="edit-title" required>
         </label>
         <label>
-          リサーチしてほしい内容 <span class="required">必須</span>
-          <textarea id="edit-brief" rows="8"></textarea>
+          リサーチしてほしい内容
+          <textarea id="edit-brief" rows="6"></textarea>
         </label>
+        <label>
+          参照URL（Instagram・X・YouTubeなど）
+          <input type="url" id="edit-source-url" placeholder="https://...">
+        </label>
+        <div class="field-block">
+          <span class="field-label">スクリーンショットを添付</span>
+          <input type="file" id="edit-screenshot-input" accept="image/*">
+          <img id="edit-screenshot-preview" class="screenshot-preview" hidden>
+          <button type="button" id="edit-screenshot-clear-btn" class="secondary" hidden>画像を削除</button>
+        </div>
         <div class="field-block">
           <span class="field-label">優先度</span>
           <div class="priority-picker" id="edit-priority-picker"></div>

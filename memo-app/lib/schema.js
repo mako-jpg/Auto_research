@@ -25,6 +25,19 @@ export function normalizeRecurringFrequency(input) {
   return VALID_RECURRING_FREQUENCIES.includes(input) ? input : "weekly";
 }
 
+export function normalizeSourceUrl(input) {
+  if (input === undefined) return undefined;
+  const trimmed = String(input || "").trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function normalizeCategories(input) {
   const list = Array.isArray(input) ? input : [];
   const seen = new Set();

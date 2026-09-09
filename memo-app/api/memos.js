@@ -6,6 +6,7 @@ import {
   normalizeOutputTypes,
   normalizeResearchMode,
   normalizeRecurringFrequency,
+  normalizeSourceUrl,
 } from "../lib/schema.js";
 import { loadMemos, saveMemos } from "../lib/store.js";
 
@@ -31,8 +32,14 @@ export default async function handler(req, res) {
     const payload = req.body || {};
     const title = (payload.title || "").trim();
     const brief = (payload.brief || "").trim();
-    if (!title || !brief) {
-      res.status(400).json({ error: "title and brief are required" });
+    const sourceUrl = normalizeSourceUrl(payload.sourceUrl);
+    const willAttachScreenshot = Boolean(payload.willAttachScreenshot);
+    if (!title) {
+      res.status(400).json({ error: "title is required" });
+      return;
+    }
+    if (!brief && !sourceUrl && !willAttachScreenshot) {
+      res.status(400).json({ error: "brief, sourceUrl, or a screenshot attachment is required" });
       return;
     }
 
@@ -51,6 +58,8 @@ export default async function handler(req, res) {
       outputTypes: normalizeOutputTypes(payload.outputTypes) || ["article", "video"],
       researchMode: normalizeResearchMode(payload.researchMode) || "once",
       recurringFrequency: normalizeRecurringFrequency(payload.recurringFrequency) || "weekly",
+      sourceUrl: sourceUrl || null,
+      screenshot: false,
       status: "pending",
       created_at: nowIso(),
       updated_at: nowIso(),

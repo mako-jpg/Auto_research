@@ -22,6 +22,22 @@ async function putBlobText(pathname, text, contentType) {
   });
 }
 
+async function getBlobBinary(pathname) {
+  const result = await get(pathname, { access: "private", useCache: false, token: token() });
+  if (!result || result.statusCode !== 200) return null;
+  const buffer = Buffer.from(await new Response(result.stream).arrayBuffer());
+  return { buffer, contentType: result.blob.contentType };
+}
+
+async function putBlobBinary(pathname, buffer, contentType) {
+  await put(pathname, buffer, {
+    access: "private",
+    contentType,
+    allowOverwrite: true,
+    token: token(),
+  });
+}
+
 export async function loadMemos() {
   const text = await getBlobText(MEMOS_PATHNAME);
   if (!text) return [];
@@ -65,4 +81,16 @@ export async function saveOutput(memoId, type, content, date) {
     await putBlobText(datedOutputPathname(memoId, type, date), content, "text/markdown");
   }
   await putBlobText(outputPathname(memoId, type), content, "text/markdown");
+}
+
+function screenshotPathname(memoId) {
+  return `screenshots/${memoId}`;
+}
+
+export async function loadScreenshot(memoId) {
+  return getBlobBinary(screenshotPathname(memoId));
+}
+
+export async function saveScreenshot(memoId, buffer, contentType) {
+  await putBlobBinary(screenshotPathname(memoId), buffer, contentType);
 }

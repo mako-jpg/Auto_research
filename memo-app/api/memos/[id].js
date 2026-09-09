@@ -5,6 +5,7 @@ import {
   normalizeOutputTypes,
   normalizeResearchMode,
   normalizeRecurringFrequency,
+  normalizeSourceUrl,
 } from "../../lib/schema.js";
 import { loadMemos, saveMemos } from "../../lib/store.js";
 
@@ -49,6 +50,9 @@ export default async function handler(req, res) {
     if (payload.recurringFrequency !== undefined) {
       payload.recurringFrequency = normalizeRecurringFrequency(payload.recurringFrequency);
     }
+    if (payload.sourceUrl !== undefined) {
+      payload.sourceUrl = normalizeSourceUrl(payload.sourceUrl);
+    }
 
     const memo = memos[index];
     const editableKeys = [
@@ -59,6 +63,7 @@ export default async function handler(req, res) {
       "outputTypes",
       "researchMode",
       "recurringFrequency",
+      "sourceUrl",
       "status",
       "outputs",
       "history",

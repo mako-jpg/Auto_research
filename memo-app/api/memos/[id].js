@@ -11,6 +11,7 @@ import {
   normalizeCustomDates,
   normalizeSourceUrl,
   normalizeBoolean,
+  normalizeRevisionNote,
 } from "../../lib/schema.js";
 import { loadMemos, saveMemos } from "../../lib/store.js";
 
@@ -73,6 +74,12 @@ export default async function handler(req, res) {
     if (payload.obsidianSave !== undefined) {
       payload.obsidianSave = normalizeBoolean(payload.obsidianSave);
     }
+    if (payload.revisionRequested !== undefined) {
+      payload.revisionRequested = normalizeBoolean(payload.revisionRequested);
+    }
+    if (payload.revisionNote !== undefined) {
+      payload.revisionNote = normalizeRevisionNote(payload.revisionNote);
+    }
 
     const memo = memos[index];
     const editableKeys = [
@@ -89,6 +96,8 @@ export default async function handler(req, res) {
       "recurringCustomDates",
       "sourceUrl",
       "obsidianSave",
+      "revisionRequested",
+      "revisionNote",
       "status",
       "outputs",
       "history",

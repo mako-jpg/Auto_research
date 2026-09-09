@@ -98,6 +98,7 @@ const outputArticleTags = document.getElementById("output-article-tags");
 const outputPageTitle = document.getElementById("output-page-title");
 const outputArticleDate = document.getElementById("output-article-date");
 const outputObsidianToggle = document.getElementById("output-obsidian-toggle");
+const outputRevisionBtn = document.getElementById("output-revision-btn");
 const outputTabs = document.getElementById("output-tabs");
 const outputHistory = document.getElementById("output-history");
 const outputPageContent = document.getElementById("output-page-content");
@@ -244,6 +245,37 @@ outputObsidianToggle.addEventListener("click", async () => {
   await updateMemo(memo.id, { obsidianSave: next });
 });
 
+function renderOutputRevisionButton() {
+  const memo = currentOutputMemo;
+  const isResearchTab = currentOutputType === "research";
+  outputRevisionBtn.hidden = !isResearchTab;
+  if (!isResearchTab) return;
+  const pending = Boolean(memo.revisionRequested);
+  outputRevisionBtn.textContent = pending ? "修正リクエスト中（クリックで取消）" : "修正をリクエスト";
+  outputRevisionBtn.classList.toggle("active", pending);
+}
+
+outputRevisionBtn.addEventListener("click", async () => {
+  const memo = currentOutputMemo;
+  if (!memo) return;
+
+  if (memo.revisionRequested) {
+    if (!confirm("修正リクエストを取り消しますか？")) return;
+    memo.revisionRequested = false;
+    memo.revisionNote = null;
+    renderOutputRevisionButton();
+    await updateMemo(memo.id, { revisionRequested: false, revisionNote: null });
+    return;
+  }
+
+  const note = (window.prompt("どこをどう直してほしいか教えてください（次回の自動処理で反映されます）") || "").trim();
+  if (!note) return;
+  memo.revisionRequested = true;
+  memo.revisionNote = note;
+  renderOutputRevisionButton();
+  await updateMemo(memo.id, { revisionRequested: true, revisionNote: note });
+});
+
 function renderOutputTabs() {
   const types = availableOutputTypes(currentOutputMemo);
   outputTabs.innerHTML = "";
@@ -258,6 +290,7 @@ function renderOutputTabs() {
       renderOutputTabs();
       renderOutputHistory();
       updateOutputByline();
+      renderOutputRevisionButton();
       loadOutputContent();
     });
     outputTabs.appendChild(btn);
@@ -331,6 +364,7 @@ function openOutputPage(memo, type) {
   renderOutputHistory();
   updateOutputByline();
   renderOutputObsidianToggle();
+  renderOutputRevisionButton();
   showPage("output");
   loadOutputContent();
 }
@@ -387,6 +421,13 @@ function renderResearchCard(memo) {
     obsidianBadge.className = "badge tag-purple research-card-obsidian-badge";
     obsidianBadge.textContent = "Obsidian保存";
     card.appendChild(obsidianBadge);
+  }
+
+  if (memo.revisionRequested) {
+    const revisionBadge = document.createElement("span");
+    revisionBadge.className = "badge tag-orange research-card-obsidian-badge";
+    revisionBadge.textContent = "修正リクエスト中";
+    card.appendChild(revisionBadge);
   }
 
   const excerpt = document.createElement("p");

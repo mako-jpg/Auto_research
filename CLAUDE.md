@@ -49,6 +49,8 @@
       "sourceUrl": null,
       "screenshot": false,
       "obsidianSave": false,
+      "revisionRequested": false,
+      "revisionNote": null,
       "outputs": {},
       "history": [],
       "last_processed_at": null,
@@ -82,6 +84,8 @@ Web UIでは「リサーチ結果」タブがメイン画面で、Note向けに�
 
 `obsidianSave` はユーザーが生成物ページ（リサーチ結果/記事下書き/動画構成を読む画面）の「Obsidianに保存」ボタンで切り替える真偽値（デフォルト`false`）。`PUT /api/memos/<id>` の汎用更新で変更できる。`true`になっているメモは、パイプラインが実行されるたびに`obsidian/<slug>.md`として同期される（詳細は下記「Obsidianへの保存」参照）。
 
+`revisionRequested`（真偽値。デフォルト`false`）と`revisionNote`（文字列または`null`）は、リサーチ結果タブの「修正をリクエスト」ボタンで設定される。ユーザーが何を直してほしいか一言書いて送ると`revisionRequested: true`・`revisionNote`にその文章が入る。次回のパイプライン実行で、`status`や頻度スケジュールとは無関係に処理対象へ加わり、既存のリサーチ内容を活かしつつ修正リクエストに沿って狙い撃ちで再調査される（詳細は下記「修正リクエスト」参照）。処理が終わると`revisionRequested`は`false`に戻る。
+
 ## 定期実行（Routine）
 
 Claude Code の Routine（スケジュールトリガー）が、デプロイ済みメモアプリのAPI（`GET/PUT /api/memos`）を `PIPELINE_TOKEN` で呼び出してpendingメモを取得・更新し、`/research-pipeline` スキルの内容を実行する。詳細は `.claude/skills/research-pipeline/SKILL.md` を参照。実行時刻は1日3回、JST 9:33 / 15:33 / 21:33（就寝中と思われる深夜〜早朝は避けている）。メモを追加・編集してから拾われるまで最大で数時間かかる。
@@ -95,6 +99,14 @@ Claude Code の Routine（スケジュールトリガー）が、デプロイ済
 - 仕組み: 生成物ページ（リサーチ結果/記事下書き/動画構成を読む画面）に「Obsidianに保存」ボタンがあり、押すとそのメモの`obsidianSave`が`true`になる（`PUT /api/memos/<id>`経由）。以後、`/research-pipeline`が実行されるたびに（そのメモ自身が今回リサーチ対象かどうかに関わらず）、そのメモのリサーチ結果・記事下書き・動画構成をまとめた1つのノートが`obsidian/<slug>.md`としてこのリポジトリに書き出され、他の生成物と同じ`git commit`/`push`でコミットされる。ノートにはタイトル・カテゴリ（タグ）・ステータス・作成日などをYAMLフロントマターとして付与し、Obsidianのプロパティ/タグ機能から扱えるようにしている。
 - ユーザー側の設定: 自分のPCでこのリポジトリをclone（またはpull）し、ObsidianでそのリポジトリのルートフォルダごとVaultとして開くか、既存のVault内に`obsidian/`フォルダをシンボリックリンクする。あとは定期的に`git pull`するだけで、パイプラインが同期した新しいノートがObsidian側にも反映される（リアルタイムではなく「pullしたら反映」）。
 - `obsidian/`フォルダの中身は完全にパイプラインの生成物のミラーなので、Obsidian側で直接編集しても次回のパイプライン実行で上書きされる点に注意（編集したい場合はObsidian側で別ノートにコピーするか、Vault内の別フォルダに置く）。
+
+## 修正リクエスト
+
+リサーチ結果を読んで「ここが古い」「この観点が抜けている」と思ったら、同じ内容をゼロから調べ直させるのではなく、ピンポイントで直させる仕組み。
+
+- 仕組み: 生成物ページの「リサーチ結果」タブにだけ「修正をリクエスト」ボタンがある。押すと何を直してほしいか一言入力するプロンプトが出て、送信すると`revisionRequested: true`・`revisionNote: <入力内容>`になる（`PUT /api/memos/<id>`経由）。次回の`/research-pipeline`実行で、そのメモの`status`や定期メモの頻度スケジュールとは無関係にこの修正が処理される。
+- researcherエージェントは「修正モード」で動く: 既存のリサーチ結果全文と修正リクエストの文章を読み、リクエストが指している部分だけをWeb検索で狙い撃ちして調べ直し、それ以外はそのまま引き継ぐ（ゼロからの再リサーチはしない — コストの無駄なため）。結果は同じ`research.md`を上書きする形で保存・アップロードされ、`outputTypes`に`article`/`video`が含まれていればそれらも更新後のリサーチ結果を元に再生成される。
+- 修正処理は「新しい実行」としては扱われない — `status`・`history`・`last_processed_at`は変更されない（定期メモの次回実行スケジュールにも影響しない）。処理が終わると`revisionRequested`は`false`に戻り、ボタンは元の表示に戻る。もう一度押せば何度でもリクエストできる。
 
 ## メモを追加する方法
 

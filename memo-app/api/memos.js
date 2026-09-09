@@ -69,6 +69,8 @@ export default async function handler(req, res) {
       sourceUrl: sourceUrl || null,
       screenshot: false,
       obsidianSave: false,
+      revisionRequested: false,
+      revisionNote: null,
       status: "pending",
       created_at: nowIso(),
       updated_at: nowIso(),

@@ -71,6 +71,13 @@ export function normalizeBoolean(input) {
   return Boolean(input);
 }
 
+export function normalizeRevisionNote(input) {
+  if (input === undefined) return undefined;
+  if (input === null) return null;
+  const trimmed = String(input).trim();
+  return trimmed || null;
+}
+
 export function normalizeCategories(input) {
   const list = Array.isArray(input) ? input : [];
   const seen = new Set();

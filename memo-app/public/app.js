@@ -16,8 +16,8 @@ const EDITABLE_STATUSES = ["pending", "done", "archived"];
 
 const RESEARCH_MODE_LABELS = { once: "単発", recurring: "定期的" };
 const RESEARCH_MODE_KEYS = ["once", "recurring"];
-const RECURRING_FREQUENCY_LABELS = { daily: "毎日", weekly: "毎週", monthly: "毎月" };
-const RECURRING_FREQUENCY_KEYS = ["daily", "weekly", "monthly"];
+const RECURRING_FREQUENCY_LABELS = { daily: "毎日", weekly: "毎週", monthly: "毎月", custom: "カスタム" };
+const RECURRING_FREQUENCY_KEYS = ["daily", "weekly", "monthly", "custom"];
 const DEFAULT_RESEARCH_MODE = "once";
 const DEFAULT_RECURRING_FREQUENCY = "weekly";
 const DAY_OF_WEEK_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -48,6 +48,9 @@ function formatResearchModeBadge(memo) {
   if (memo.recurringFrequency === "monthly" && memo.recurringDayOfMonth) {
     label += `(${memo.recurringDayOfMonth}日)`;
   }
+  if (memo.recurringFrequency === "custom" && memo.recurringCustomDate) {
+    label += `(${memo.recurringCustomDate})`;
+  }
   if (memo.recurringTime) {
     label += ` ${memo.recurringTime}`;
   }
@@ -70,6 +73,8 @@ const recurringDayOfWeekBlock = document.getElementById("recurring-day-of-week-b
 const recurringDayOfWeekPicker = document.getElementById("recurring-day-of-week-picker");
 const recurringDayOfMonthBlock = document.getElementById("recurring-day-of-month-block");
 const recurringDayOfMonthSelect = document.getElementById("recurring-day-of-month");
+const recurringCustomDateBlock = document.getElementById("recurring-custom-date-block");
+const recurringCustomDateInput = document.getElementById("recurring-custom-date");
 const recurringTimeBlock = document.getElementById("recurring-time-block");
 const recurringTimeInput = document.getElementById("recurring-time");
 const sourceUrlInput = document.getElementById("source-url");
@@ -120,6 +125,8 @@ const editRecurringDayOfWeekBlock = document.getElementById("edit-recurring-day-
 const editRecurringDayOfWeekPicker = document.getElementById("edit-recurring-day-of-week-picker");
 const editRecurringDayOfMonthBlock = document.getElementById("edit-recurring-day-of-month-block");
 const editRecurringDayOfMonthSelect = document.getElementById("edit-recurring-day-of-month");
+const editRecurringCustomDateBlock = document.getElementById("edit-recurring-custom-date-block");
+const editRecurringCustomDateInput = document.getElementById("edit-recurring-custom-date");
 const editRecurringTimeBlock = document.getElementById("edit-recurring-time-block");
 const editRecurringTimeInput = document.getElementById("edit-recurring-time");
 const editError = document.getElementById("edit-error");
@@ -457,10 +464,11 @@ function renderSingleSelectChips(container, options, selectedValue, onSelect) {
 const RESEARCH_MODE_OPTIONS = RESEARCH_MODE_KEYS.map((k) => [k, RESEARCH_MODE_LABELS[k]]);
 const RECURRING_FREQUENCY_OPTIONS = RECURRING_FREQUENCY_KEYS.map((k) => [k, RECURRING_FREQUENCY_LABELS[k]]);
 
-function updateFrequencyDetailVisibility(mode, freq, dowBlock, domBlock, timeBlock) {
+function updateFrequencyDetailVisibility(mode, freq, dowBlock, domBlock, customDateBlock, timeBlock) {
   const isRecurring = mode === "recurring";
   dowBlock.hidden = !(isRecurring && freq === "weekly");
   domBlock.hidden = !(isRecurring && freq === "monthly");
+  customDateBlock.hidden = !(isRecurring && freq === "custom");
   timeBlock.hidden = !isRecurring;
 }
 
@@ -514,6 +522,7 @@ function renderResearchModePicker() {
       formRecurringFrequency,
       recurringDayOfWeekBlock,
       recurringDayOfMonthBlock,
+      recurringCustomDateBlock,
       recurringTimeBlock
     );
   });
@@ -524,6 +533,7 @@ function renderRecurringFrequencyPicker() {
     formRecurringFrequency = key;
     if (key !== "weekly") formDayOfWeek = null;
     if (key !== "monthly") recurringDayOfMonthSelect.value = "";
+    if (key !== "custom") recurringCustomDateInput.value = "";
     renderRecurringFrequencyPicker();
     renderFormDayOfWeekPicker();
     updateFrequencyDetailVisibility(
@@ -531,6 +541,7 @@ function renderRecurringFrequencyPicker() {
       formRecurringFrequency,
       recurringDayOfWeekBlock,
       recurringDayOfMonthBlock,
+      recurringCustomDateBlock,
       recurringTimeBlock
     );
   });
@@ -546,6 +557,7 @@ function renderEditResearchModePicker() {
       editRecurringFrequencyValue,
       editRecurringDayOfWeekBlock,
       editRecurringDayOfMonthBlock,
+      editRecurringCustomDateBlock,
       editRecurringTimeBlock
     );
   });
@@ -556,6 +568,7 @@ function renderEditRecurringFrequencyPicker() {
     editRecurringFrequencyValue = key;
     if (key !== "weekly") editDayOfWeek = null;
     if (key !== "monthly") editRecurringDayOfMonthSelect.value = "";
+    if (key !== "custom") editRecurringCustomDateInput.value = "";
     renderEditRecurringFrequencyPicker();
     renderEditDayOfWeekPicker();
     updateFrequencyDetailVisibility(
@@ -563,6 +576,7 @@ function renderEditRecurringFrequencyPicker() {
       editRecurringFrequencyValue,
       editRecurringDayOfWeekBlock,
       editRecurringDayOfMonthBlock,
+      editRecurringCustomDateBlock,
       editRecurringTimeBlock
     );
   });
@@ -778,6 +792,8 @@ memoEditBtn.addEventListener("click", () => {
   editRecurringFrequencyValue = memo.recurringFrequency || DEFAULT_RECURRING_FREQUENCY;
   editDayOfWeek = memo.recurringDayOfWeek ?? null;
   editRecurringDayOfMonthSelect.value = memo.recurringDayOfMonth ? String(memo.recurringDayOfMonth) : "";
+  editRecurringCustomDateInput.min = todayDateString();
+  editRecurringCustomDateInput.value = memo.recurringCustomDate || "";
   editRecurringTimeInput.value = memo.recurringTime || "";
   renderEditPriorityPicker();
   renderEditCategoryPicker();
@@ -791,6 +807,7 @@ memoEditBtn.addEventListener("click", () => {
     editRecurringFrequencyValue,
     editRecurringDayOfWeekBlock,
     editRecurringDayOfMonthBlock,
+    editRecurringCustomDateBlock,
     editRecurringTimeBlock
   );
 
@@ -826,6 +843,7 @@ memoEditForm.addEventListener("submit", async (e) => {
     recurringFrequency: editRecurringFrequencyValue,
     recurringDayOfWeek: editDayOfWeek,
     recurringDayOfMonth: editRecurringDayOfMonthSelect.value || null,
+    recurringCustomDate: editRecurringCustomDateInput.value || null,
     recurringTime: editRecurringTimeInput.value || null,
   };
 
@@ -896,6 +914,7 @@ form.addEventListener("submit", async (e) => {
     recurringFrequency: formRecurringFrequency,
     recurringDayOfWeek: formDayOfWeek,
     recurringDayOfMonth: recurringDayOfMonthSelect.value || null,
+    recurringCustomDate: recurringCustomDateInput.value || null,
     recurringTime: recurringTimeInput.value || null,
   };
 
@@ -925,6 +944,7 @@ form.addEventListener("submit", async (e) => {
   formRecurringFrequency = DEFAULT_RECURRING_FREQUENCY;
   formDayOfWeek = null;
   recurringDayOfMonthSelect.value = "";
+  recurringCustomDateInput.value = "";
   recurringTimeInput.value = "";
   formScreenshotFile = null;
   resetScreenshotField(screenshotInput, screenshotPreview, screenshotClearBtn);
@@ -937,12 +957,21 @@ form.addEventListener("submit", async (e) => {
   recurringFrequencyBlock.hidden = true;
   recurringDayOfWeekBlock.hidden = true;
   recurringDayOfMonthBlock.hidden = true;
+  recurringCustomDateBlock.hidden = true;
   recurringTimeBlock.hidden = true;
   addMemoModal.hidden = true;
   await fetchMemos();
 });
 
+function todayDateString() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
 addMemoFab.addEventListener("click", () => {
+  recurringCustomDateInput.min = todayDateString();
   addMemoModal.hidden = false;
 });
 addMemoClose.addEventListener("click", () => {

@@ -9,6 +9,7 @@ import {
   normalizeDayOfWeek,
   normalizeDayOfMonth,
   normalizeRecurringTime,
+  normalizeCustomDate,
   normalizeSourceUrl,
 } from "../lib/schema.js";
 import { loadMemos, saveMemos } from "../lib/store.js";
@@ -64,6 +65,7 @@ export default async function handler(req, res) {
       recurringDayOfWeek: normalizeDayOfWeek(payload.recurringDayOfWeek) ?? null,
       recurringDayOfMonth: normalizeDayOfMonth(payload.recurringDayOfMonth) ?? null,
       recurringTime: normalizeRecurringTime(payload.recurringTime) ?? null,
+      recurringCustomDate: normalizeCustomDate(payload.recurringCustomDate) ?? null,
       sourceUrl: sourceUrl || null,
       screenshot: false,
       status: "pending",

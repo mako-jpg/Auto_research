@@ -13,7 +13,7 @@ export function normalizeOutputTypes(input) {
 }
 
 const VALID_RESEARCH_MODES = ["once", "recurring"];
-const VALID_RECURRING_FREQUENCIES = ["daily", "weekly", "monthly"];
+const VALID_RECURRING_FREQUENCIES = ["daily", "weekly", "monthly", "custom"];
 
 export function normalizeResearchMode(input) {
   if (input === undefined) return undefined;
@@ -44,6 +44,13 @@ export function normalizeRecurringTime(input) {
   if (input === null || input === "") return null;
   const trimmed = String(input).trim();
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(trimmed) ? trimmed : null;
+}
+
+export function normalizeCustomDate(input) {
+  if (input === undefined) return undefined;
+  if (input === null || input === "") return null;
+  const trimmed = String(input).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
 }
 
 export function normalizeSourceUrl(input) {

@@ -36,12 +36,12 @@ description: Fetches pending entries (plus due recurring entries whose researchM
    - `status` が `"pending"` の単発（`researchMode: "once"`）メモ。無条件で対象。
    - `status` が `"pending"`（初回）または `"active"` で `researchMode: "recurring"` のメモのうち、**次の実行予定日を過ぎているもの**（＝期限が来た定期メモ）。判定方法は `recurringFrequency` によって異なる。
      - `daily`/`weekly`/`monthly` の場合、判定は次の2段階（両方満たしたら対象）:
-       1. **経過時間チェック**（同じ実行が短期間に重複しないためのガード）: `last_processed_at` が `null`（まだ一度も処理されていない）なら即クリア。そうでなければ、`recurringFrequency` に応じた最小間隔（`daily`＝20時間、`weekly`＝6日、`monthly`＝27日、いずれもRoutineが6時間おきに動く前提の概算）以上経過していること。
+       1. **経過時間チェック**（同じ実行が短期間に重複しないためのガード）: `last_processed_at` が `null`（まだ一度も処理されていない）なら即クリア。そうでなければ、`recurringFrequency` に応じた最小間隔（`daily`＝20時間、`weekly`＝6日、`monthly`＝27日）以上経過していること。
        2. **曜日・日にち・時刻チェック**（`recurringDayOfWeek`/`recurringDayOfMonth`/`recurringTime` が設定されている場合のみ、追加で満たす必要がある。`null`のものはチェックをスキップ＝いつでも良い）:
           - `recurringFrequency: "weekly"` かつ `recurringDayOfWeek` が設定されている → 今日の曜日（0=日曜〜6=土曜）が一致すること。
           - `recurringFrequency: "monthly"` かつ `recurringDayOfMonth` が設定されている → 今日の日にちが一致すること（その月にその日が存在しない場合は、その月の最終日を代わりに一致とみなす。例: 31日指定で2月なら28日/29日を最終実行日とする）。
           - `recurringTime` が設定されている → 現在時刻がその時刻以降であること（例: `09:00` 指定なら、9時台以降のRoutine実行で初めて対象になる）。
-          時刻判定は日本時間（JST, UTC+9）を基準にする。厳密なcronではなく「その日の、その時刻以降に最初にRoutineが動いたとき」に処理される程度の精度でよい（Routine自体が6時間おきなので、それ以上の精度は出せない）。bashで今日のJST基準の曜日・日にち・時刻を得る例:
+          時刻判定は日本時間（JST, UTC+9）を基準にする。厳密なcronではなく「その日の、その時刻以降に最初にRoutineが動いたとき」に処理される程度の精度でよい（Routine自体が1時間おきなので、それ以上の精度は出せない）。bashで今日のJST基準の曜日・日にち・時刻を得る例:
           ```bash
           TZ=Asia/Tokyo date +%u  # 曜日: 1=月〜7=日（recurringDayOfWeekの0=日曜始まりとはズレるので変換に注意。%uの7を0に読み替える）
           TZ=Asia/Tokyo date +%d  # 日にち: 01〜31

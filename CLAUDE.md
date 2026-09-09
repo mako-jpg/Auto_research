@@ -66,7 +66,7 @@
 
 `researchMode` は `"once"`（単発。デフォルト）または `"recurring"`（定期的）。`recurringFrequency` は `researchMode: "recurring"` のときだけ意味を持ち、`"daily"`（毎日）/ `"weekly"`（毎週。デフォルト）/ `"monthly"`（毎月）/ `"custom"`（カスタム）のいずれか。ユーザーがメモ作成・編集フォームのボタンで選ぶ。
 
-`recurringFrequency` が `"weekly"` のとき `recurringDayOfWeek`（0=日曜〜6=土曜、JSの`Date.getDay()`と同じ体系。任意、未指定は`null`）で曜日を、`"monthly"` のとき `recurringDayOfMonth`（1〜31。任意、未指定は`null`）で日にちを、`"custom"` のとき `recurringCustomDates`（`["YYYY-MM-DD", ...]` の配列。UIのカレンダーで複数日選択可）で実行日を1つ以上指定できる（フォーム側は選んだ頻度と無関係な項目を自動でクリアする）。`recurringTime`（`"HH:MM"` 24時間表記。任意、未指定は`null`）は頻度に関わらず希望の実行時刻を表す。いずれも「希望」であって厳密なcron指定ではない — 実際にAPIをポーリングするRoutineは6時間おきなので、その粒度でしか判定できない（詳細は`SKILL.md`の期限判定ロジックを参照）。
+`recurringFrequency` が `"weekly"` のとき `recurringDayOfWeek`（0=日曜〜6=土曜、JSの`Date.getDay()`と同じ体系。任意、未指定は`null`）で曜日を、`"monthly"` のとき `recurringDayOfMonth`（1〜31。任意、未指定は`null`）で日にちを、`"custom"` のとき `recurringCustomDates`（`["YYYY-MM-DD", ...]` の配列。UIのカレンダーで複数日選択可）で実行日を1つ以上指定できる（フォーム側は選んだ頻度と無関係な項目を自動でクリアする）。`recurringTime`（`"HH:MM"` 24時間表記。任意、未指定は`null`）は頻度に関わらず希望の実行時刻を表す。いずれも「希望」であって厳密なcron指定ではない — 実際にAPIをポーリングするRoutineは1時間おきなので、その粒度でしか判定できない（詳細は`SKILL.md`の期限判定ロジックを参照）。
 
 `"custom"` は他の3つ（`daily`/`weekly`/`monthly`）と実行タイミングの決め方が違うだけで、挙動そのものは同じ — `recurringCustomDates` に指定した日付（＋`recurringTime`）が来るたびに処理され、その都度 `history` に記録が追記される。すべての指定日を処理し終えても `active` のままメモ一覧に残り続け（`done`/`archived` にはならない）、ユーザーが後から日付を編集フォームで追加すれば再び処理対象になる。「決まった周期ではなく、任意の複数の日に忘れずにリサーチしたい」という用途向け。
 
@@ -82,7 +82,9 @@
 
 ## 定期実行（Routine）
 
-Claude Code の Routine（スケジュールトリガー、6時間おき）が、デプロイ済みメモアプリのAPI（`GET/PUT /api/memos`）を `PIPELINE_TOKEN` で呼び出してpendingメモを取得・更新し、`/research-pipeline` スキルの内容を実行する。詳細は `.claude/skills/research-pipeline/SKILL.md` を参照。
+Claude Code の Routine（スケジュールトリガー、1時間おき）が、デプロイ済みメモアプリのAPI（`GET/PUT /api/memos`）を `PIPELINE_TOKEN` で呼び出してpendingメモを取得・更新し、`/research-pipeline` スキルの内容を実行する。詳細は `.claude/skills/research-pipeline/SKILL.md` を参照。
+
+メモアプリ側からボタン一つでこのRoutineを即座に起動する仕組みは無い（RoutineはClaude Codeのセッションからしか起動できず、Vercel上のメモアプリから直接呼び出せる公開APIが無いため）。そのため折衷案として、ポーリング間隔をClaude CodeのRoutineで設定できる最小値である1時間に短縮している。メモを追加・編集してから最大1時間程度で拾われる。
 
 ## Obsidianへの保存
 

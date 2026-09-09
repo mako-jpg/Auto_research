@@ -247,9 +247,7 @@ outputObsidianToggle.addEventListener("click", async () => {
 
 function renderOutputRevisionButton() {
   const memo = currentOutputMemo;
-  const isResearchTab = currentOutputType === "research";
-  outputRevisionBtn.hidden = !isResearchTab;
-  if (!isResearchTab) return;
+  outputRevisionBtn.hidden = false;
   const pending = Boolean(memo.revisionRequested);
   outputRevisionBtn.textContent = pending ? "修正リクエスト中（クリックで取消）" : "修正をリクエスト";
   outputRevisionBtn.classList.toggle("active", pending);

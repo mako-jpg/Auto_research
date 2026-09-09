@@ -48,8 +48,9 @@ function formatResearchModeBadge(memo) {
   if (memo.recurringFrequency === "monthly" && memo.recurringDayOfMonth) {
     label += `(${memo.recurringDayOfMonth}日)`;
   }
-  if (memo.recurringFrequency === "custom" && memo.recurringCustomDate) {
-    label += `(${memo.recurringCustomDate})`;
+  if (memo.recurringFrequency === "custom" && (memo.recurringCustomDates || []).length > 0) {
+    const dates = [...memo.recurringCustomDates].sort();
+    label += dates.length === 1 ? `(${dates[0]})` : `(${dates[0]} 他${dates.length - 1}件)`;
   }
   if (memo.recurringTime) {
     label += ` ${memo.recurringTime}`;
@@ -74,7 +75,11 @@ const recurringDayOfWeekPicker = document.getElementById("recurring-day-of-week-
 const recurringDayOfMonthBlock = document.getElementById("recurring-day-of-month-block");
 const recurringDayOfMonthSelect = document.getElementById("recurring-day-of-month");
 const recurringCustomDateBlock = document.getElementById("recurring-custom-date-block");
-const recurringCustomDateInput = document.getElementById("recurring-custom-date");
+const recurringCalendarPrev = document.getElementById("recurring-calendar-prev");
+const recurringCalendarNext = document.getElementById("recurring-calendar-next");
+const recurringCalendarLabel = document.getElementById("recurring-calendar-label");
+const recurringCalendarGrid = document.getElementById("recurring-calendar-grid");
+const recurringCustomDateChips = document.getElementById("recurring-custom-date-chips");
 const recurringTimeBlock = document.getElementById("recurring-time-block");
 const recurringTimeInput = document.getElementById("recurring-time");
 const sourceUrlInput = document.getElementById("source-url");
@@ -126,7 +131,11 @@ const editRecurringDayOfWeekPicker = document.getElementById("edit-recurring-day
 const editRecurringDayOfMonthBlock = document.getElementById("edit-recurring-day-of-month-block");
 const editRecurringDayOfMonthSelect = document.getElementById("edit-recurring-day-of-month");
 const editRecurringCustomDateBlock = document.getElementById("edit-recurring-custom-date-block");
-const editRecurringCustomDateInput = document.getElementById("edit-recurring-custom-date");
+const editRecurringCalendarPrev = document.getElementById("edit-recurring-calendar-prev");
+const editRecurringCalendarNext = document.getElementById("edit-recurring-calendar-next");
+const editRecurringCalendarLabel = document.getElementById("edit-recurring-calendar-label");
+const editRecurringCalendarGrid = document.getElementById("edit-recurring-calendar-grid");
+const editRecurringCustomDateChips = document.getElementById("edit-recurring-custom-date-chips");
 const editRecurringTimeBlock = document.getElementById("edit-recurring-time-block");
 const editRecurringTimeInput = document.getElementById("edit-recurring-time");
 const editError = document.getElementById("edit-error");
@@ -140,6 +149,8 @@ let formOutputTypes = new Set(DEFAULT_OUTPUT_TYPES);
 let formResearchMode = DEFAULT_RESEARCH_MODE;
 let formRecurringFrequency = DEFAULT_RECURRING_FREQUENCY;
 let formDayOfWeek = null;
+let formCustomDates = new Set();
+let formCalendarMonth = new Date();
 let formScreenshotFile = null;
 
 let currentMemoId = null;
@@ -149,6 +160,8 @@ let editOutputTypesValue = new Set(DEFAULT_OUTPUT_TYPES);
 let editResearchModeValue = DEFAULT_RESEARCH_MODE;
 let editRecurringFrequencyValue = DEFAULT_RECURRING_FREQUENCY;
 let editDayOfWeek = null;
+let editCustomDates = new Set();
+let editCalendarMonth = new Date();
 let editScreenshotFile = null;
 let editScreenshotRemove = false;
 
@@ -512,6 +525,114 @@ function renderEditDayOfWeekPicker() {
   });
 }
 
+function renderCustomCalendar(gridEl, labelEl, monthDate, selectedSet, onToggleDate) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  labelEl.textContent = `${year}年${month + 1}月`;
+
+  gridEl.innerHTML = "";
+  for (const label of DAY_OF_WEEK_LABELS) {
+    const cell = document.createElement("div");
+    cell.className = "custom-calendar-weekday";
+    cell.textContent = label;
+    gridEl.appendChild(cell);
+  }
+
+  const startOffset = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayStr = todayDateString();
+
+  for (let i = 0; i < startOffset; i++) {
+    const blank = document.createElement("div");
+    blank.className = "custom-calendar-day empty";
+    gridEl.appendChild(blank);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "custom-calendar-day";
+    btn.textContent = String(d);
+    if (dateStr < todayStr) {
+      btn.disabled = true;
+      btn.classList.add("disabled");
+    } else {
+      btn.addEventListener("click", () => onToggleDate(dateStr));
+    }
+    if (selectedSet.has(dateStr)) btn.classList.add("selected");
+    gridEl.appendChild(btn);
+  }
+}
+
+function renderCustomDateChips(container, selectedSet, onRemove) {
+  container.innerHTML = "";
+  for (const date of [...selectedSet].sort()) {
+    const chip = document.createElement("span");
+    chip.className = "custom-date-chip";
+    chip.textContent = date;
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "custom-date-chip-remove";
+    removeBtn.textContent = "×";
+    removeBtn.setAttribute("aria-label", `${date}を削除`);
+    removeBtn.addEventListener("click", () => onRemove(date));
+    chip.appendChild(removeBtn);
+    container.appendChild(chip);
+  }
+}
+
+function renderFormCustomCalendar() {
+  renderCustomCalendar(recurringCalendarGrid, recurringCalendarLabel, formCalendarMonth, formCustomDates, (dateStr) => {
+    if (formCustomDates.has(dateStr)) formCustomDates.delete(dateStr);
+    else formCustomDates.add(dateStr);
+    renderFormCustomCalendar();
+    renderFormCustomDateChips();
+  });
+}
+
+function renderFormCustomDateChips() {
+  renderCustomDateChips(recurringCustomDateChips, formCustomDates, (date) => {
+    formCustomDates.delete(date);
+    renderFormCustomCalendar();
+    renderFormCustomDateChips();
+  });
+}
+
+function renderEditCustomCalendar() {
+  renderCustomCalendar(editRecurringCalendarGrid, editRecurringCalendarLabel, editCalendarMonth, editCustomDates, (dateStr) => {
+    if (editCustomDates.has(dateStr)) editCustomDates.delete(dateStr);
+    else editCustomDates.add(dateStr);
+    renderEditCustomCalendar();
+    renderEditCustomDateChips();
+  });
+}
+
+function renderEditCustomDateChips() {
+  renderCustomDateChips(editRecurringCustomDateChips, editCustomDates, (date) => {
+    editCustomDates.delete(date);
+    renderEditCustomCalendar();
+    renderEditCustomDateChips();
+  });
+}
+
+recurringCalendarPrev.addEventListener("click", () => {
+  formCalendarMonth = new Date(formCalendarMonth.getFullYear(), formCalendarMonth.getMonth() - 1, 1);
+  renderFormCustomCalendar();
+});
+recurringCalendarNext.addEventListener("click", () => {
+  formCalendarMonth = new Date(formCalendarMonth.getFullYear(), formCalendarMonth.getMonth() + 1, 1);
+  renderFormCustomCalendar();
+});
+editRecurringCalendarPrev.addEventListener("click", () => {
+  editCalendarMonth = new Date(editCalendarMonth.getFullYear(), editCalendarMonth.getMonth() - 1, 1);
+  renderEditCustomCalendar();
+});
+editRecurringCalendarNext.addEventListener("click", () => {
+  editCalendarMonth = new Date(editCalendarMonth.getFullYear(), editCalendarMonth.getMonth() + 1, 1);
+  renderEditCustomCalendar();
+});
+
 function renderResearchModePicker() {
   renderSingleSelectChips(researchModePicker, RESEARCH_MODE_OPTIONS, formResearchMode, (key) => {
     formResearchMode = key;
@@ -533,9 +654,13 @@ function renderRecurringFrequencyPicker() {
     formRecurringFrequency = key;
     if (key !== "weekly") formDayOfWeek = null;
     if (key !== "monthly") recurringDayOfMonthSelect.value = "";
-    if (key !== "custom") recurringCustomDateInput.value = "";
+    if (key !== "custom") {
+      formCustomDates.clear();
+      renderFormCustomDateChips();
+    }
     renderRecurringFrequencyPicker();
     renderFormDayOfWeekPicker();
+    renderFormCustomCalendar();
     updateFrequencyDetailVisibility(
       formResearchMode,
       formRecurringFrequency,
@@ -568,9 +693,13 @@ function renderEditRecurringFrequencyPicker() {
     editRecurringFrequencyValue = key;
     if (key !== "weekly") editDayOfWeek = null;
     if (key !== "monthly") editRecurringDayOfMonthSelect.value = "";
-    if (key !== "custom") editRecurringCustomDateInput.value = "";
+    if (key !== "custom") {
+      editCustomDates.clear();
+      renderEditCustomDateChips();
+    }
     renderEditRecurringFrequencyPicker();
     renderEditDayOfWeekPicker();
+    renderEditCustomCalendar();
     updateFrequencyDetailVisibility(
       editResearchModeValue,
       editRecurringFrequencyValue,
@@ -792,8 +921,11 @@ memoEditBtn.addEventListener("click", () => {
   editRecurringFrequencyValue = memo.recurringFrequency || DEFAULT_RECURRING_FREQUENCY;
   editDayOfWeek = memo.recurringDayOfWeek ?? null;
   editRecurringDayOfMonthSelect.value = memo.recurringDayOfMonth ? String(memo.recurringDayOfMonth) : "";
-  editRecurringCustomDateInput.min = todayDateString();
-  editRecurringCustomDateInput.value = memo.recurringCustomDate || "";
+  editCustomDates = new Set(memo.recurringCustomDates || []);
+  const earliestCustomDate = [...editCustomDates].sort()[0];
+  editCalendarMonth = earliestCustomDate
+    ? new Date(`${earliestCustomDate}T00:00:00`)
+    : new Date();
   editRecurringTimeInput.value = memo.recurringTime || "";
   renderEditPriorityPicker();
   renderEditCategoryPicker();
@@ -801,6 +933,8 @@ memoEditBtn.addEventListener("click", () => {
   renderEditResearchModePicker();
   renderEditRecurringFrequencyPicker();
   renderEditDayOfWeekPicker();
+  renderEditCustomCalendar();
+  renderEditCustomDateChips();
   editRecurringFrequencyBlock.hidden = editResearchModeValue !== "recurring";
   updateFrequencyDetailVisibility(
     editResearchModeValue,
@@ -843,7 +977,7 @@ memoEditForm.addEventListener("submit", async (e) => {
     recurringFrequency: editRecurringFrequencyValue,
     recurringDayOfWeek: editDayOfWeek,
     recurringDayOfMonth: editRecurringDayOfMonthSelect.value || null,
-    recurringCustomDate: editRecurringCustomDateInput.value || null,
+    recurringCustomDates: [...editCustomDates],
     recurringTime: editRecurringTimeInput.value || null,
   };
 
@@ -914,7 +1048,7 @@ form.addEventListener("submit", async (e) => {
     recurringFrequency: formRecurringFrequency,
     recurringDayOfWeek: formDayOfWeek,
     recurringDayOfMonth: recurringDayOfMonthSelect.value || null,
-    recurringCustomDate: recurringCustomDateInput.value || null,
+    recurringCustomDates: [...formCustomDates],
     recurringTime: recurringTimeInput.value || null,
   };
 
@@ -944,7 +1078,8 @@ form.addEventListener("submit", async (e) => {
   formRecurringFrequency = DEFAULT_RECURRING_FREQUENCY;
   formDayOfWeek = null;
   recurringDayOfMonthSelect.value = "";
-  recurringCustomDateInput.value = "";
+  formCustomDates.clear();
+  formCalendarMonth = new Date();
   recurringTimeInput.value = "";
   formScreenshotFile = null;
   resetScreenshotField(screenshotInput, screenshotPreview, screenshotClearBtn);
@@ -954,6 +1089,8 @@ form.addEventListener("submit", async (e) => {
   renderResearchModePicker();
   renderRecurringFrequencyPicker();
   renderFormDayOfWeekPicker();
+  renderFormCustomCalendar();
+  renderFormCustomDateChips();
   recurringFrequencyBlock.hidden = true;
   recurringDayOfWeekBlock.hidden = true;
   recurringDayOfMonthBlock.hidden = true;
@@ -971,7 +1108,6 @@ function todayDateString() {
 }
 
 addMemoFab.addEventListener("click", () => {
-  recurringCustomDateInput.min = todayDateString();
   addMemoModal.hidden = false;
 });
 addMemoClose.addEventListener("click", () => {
@@ -993,5 +1129,7 @@ renderOutputTypePicker();
 renderResearchModePicker();
 renderRecurringFrequencyPicker();
 renderFormDayOfWeekPicker();
+renderFormCustomCalendar();
+renderFormCustomDateChips();
 fetchMemos();
 fetchCategories();

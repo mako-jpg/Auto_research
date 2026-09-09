@@ -19,7 +19,7 @@ description: Fetches pending entries (plus due recurring entries whose researchM
   - `PUT /api/memos/<id>/outputs/<type>` — 生成物の本文（Markdown）をアップロードする（`type` は `article` / `video` のみ。**`research` は含まない** — リサーチはパイプラインが常に内部的に行う下調べであり、Web UI上の生成物としては扱わない）。body に生ファイル内容をそのまま送る。メモアプリのWeb UIはこれを読んでその場で表示する。**定期メモの場合はクエリパラメータ `?date=YYYY-MM-DD` を付けて、その回の実行日付でアップロードする**（サーバー側で「最新」のコピーも自動的に同期されるので、通常のGET/日付なしのアップロードは常に最新を指す）。GETも同様に `?date=` で過去分を個別に取得できる。
   - `GET /api/memos/<id>/screenshot` — メモに添付されたスクリーンショット画像のバイナリを取得する（`memo.screenshot` が `true` のときだけ存在する）。
 - 各メモの `outputTypes` フィールド（`["article"]` や `["article","video"]` など）が、そのメモについて生成すべき項目を指定する。ユーザーがメモ作成・編集画面のボタンで選ぶ。**リサーチ（researcherエージェント）は選択肢に関係なく毎回必ず実行する**（記事・動画の元になる下調べのため）。
-- 各メモの `researchMode` フィールドが `"once"`（単発）か `"recurring"`（定期的）かを表す。定期的の場合 `recurringFrequency` が `"daily"`/`"weekly"`/`"monthly"`/`"custom"` のいずれかで頻度を表す。加えて、`recurringFrequency: "weekly"` のとき `recurringDayOfWeek`（0=日曜〜6=土曜。任意、`null`なら指定なし）、`"monthly"` のとき `recurringDayOfMonth`（1〜31。任意、`null`なら指定なし）で曜日・日にちを、`"custom"` のとき `recurringCustomDate`（`"YYYY-MM-DD"`。必須相当 — UIのカレンダーで指定）で実行日を、`recurringTime`（`"HH:MM"`。任意、`null`なら指定なし）で希望の実行時刻を指定できる。**`"custom"` は他の3つと違い「繰り返さない」** — 指定した日時にちょうど1回だけ実行され、その後は単発メモと同じ扱いになる（詳しくは下記手順を参照）。
+- 各メモの `researchMode` フィールドが `"once"`（単発）か `"recurring"`（定期的）かを表す。定期的の場合 `recurringFrequency` が `"daily"`/`"weekly"`/`"monthly"`/`"custom"` のいずれかで頻度を表す。加えて、`recurringFrequency: "weekly"` のとき `recurringDayOfWeek`（0=日曜〜6=土曜。任意、`null`なら指定なし）、`"monthly"` のとき `recurringDayOfMonth`（1〜31。任意、`null`なら指定なし）で曜日・日にちを、`"custom"` のとき `recurringCustomDates`（`["YYYY-MM-DD", ...]` の配列。UIのカレンダーで複数選択可）で実行日を1つ以上、`recurringTime`（`"HH:MM"`。任意、`null`なら指定なし）で希望の実行時刻を指定できる。**`"custom"` は他の3つ（daily/weekly/monthly）と実行タイミングの決め方が違うだけ** — 決まった周期ではなく `recurringCustomDates` の明示的な日付リストで次回実行日を管理する。それ以外の挙動（`active`のまま残り続ける、`history`に実行ごとの記録が蓄積する、`slug`を固定する）は他の定期メモと同じで、配列内の日付を1つずつ、期限が来るたびに処理していく（詳しくは下記手順を参照）。
 - 各メモは `sourceUrl`（参照URL。InstagramやX、YouTubeの投稿URLなど）と `screenshot`（スクリーンショット画像が添付されているかの真偽値）を持つ場合がある。どちらか片方だけ・両方・どちらも無し、いずれもあり得る。researcherエージェントへの入力に必ず含めること（下記手順参照）。
 
 ## 手順
@@ -32,28 +32,30 @@ description: Fetches pending entries (plus due recurring entries whose researchM
    curl -s -H "Authorization: Bearer $PIPELINE_TOKEN" "$BASE_URL/api/memos"
    ```
 3. 処理候補を集める（単発と定期を合わせて1つのプールにする）。
-   - `status` が `"pending"` のメモ。ただし `researchMode: "recurring"` かつ `recurringFrequency: "custom"` の場合のみ例外で、`recurringCustomDate`（＋`recurringTime`。未指定なら`00:00`扱い）で指定された日時（JST基準）に**まだ達していなければ対象外**（＝予約した日時が来るまで待つ）。それ以外（単発、および custom 以外の定期の初回処理）は無条件で対象。
-   - `status` が `"active"` かつ `researchMode` が `"recurring"` のメモ（`recurringFrequency` が `daily`/`weekly`/`monthly` のいずれか。**`custom` はここには来ない** — 後述の通り一度処理されると単発と同じ終端状態になるため）のうち、**次の実行予定日を過ぎているもの**（＝期限が来た定期メモ）。判定は次の2段階（両方満たしたら対象）:
-     1. **経過時間チェック**（同じ実行が短期間に重複しないためのガード）: `last_processed_at` が `null`（まだ一度も処理されていない）なら即クリア。そうでなければ、`recurringFrequency` に応じた最小間隔（`daily`＝20時間、`weekly`＝6日、`monthly`＝27日、いずれもRoutineが6時間おきに動く前提の概算）以上経過していること。
-     2. **曜日・日にち・時刻チェック**（`recurringDayOfWeek`/`recurringDayOfMonth`/`recurringTime` が設定されている場合のみ、追加で満たす必要がある。`null`のものはチェックをスキップ＝いつでも良い）:
-        - `recurringFrequency: "weekly"` かつ `recurringDayOfWeek` が設定されている → 今日の曜日（0=日曜〜6=土曜）が一致すること。
-        - `recurringFrequency: "monthly"` かつ `recurringDayOfMonth` が設定されている → 今日の日にちが一致すること（その月にその日が存在しない場合は、その月の最終日を代わりに一致とみなす。例: 31日指定で2月なら28日/29日を最終実行日とする）。
-        - `recurringTime` が設定されている → 現在時刻がその時刻以降であること（例: `09:00` 指定なら、9時台以降のRoutine実行で初めて対象になる）。
-        時刻判定は日本時間（JST, UTC+9）を基準にする。厳密なcronではなく「その日の、その時刻以降に最初にRoutineが動いたとき」に処理される程度の精度でよい（Routine自体が6時間おきなので、それ以上の精度は出せない）。bashで今日のJST基準の曜日・日にち・時刻を得る例:
-        ```bash
-        TZ=Asia/Tokyo date +%u  # 曜日: 1=月〜7=日（recurringDayOfWeekの0=日曜始まりとはズレるので変換に注意。%uの7を0に読み替える）
-        TZ=Asia/Tokyo date +%d  # 日にち: 01〜31
-        TZ=Asia/Tokyo date +%H:%M  # 現在時刻
-        ```
+   - `status` が `"pending"` の単発（`researchMode: "once"`）メモ。無条件で対象。
+   - `status` が `"pending"`（初回）または `"active"` で `researchMode: "recurring"` のメモのうち、**次の実行予定日を過ぎているもの**（＝期限が来た定期メモ）。判定方法は `recurringFrequency` によって異なる。
+     - `daily`/`weekly`/`monthly` の場合、判定は次の2段階（両方満たしたら対象）:
+       1. **経過時間チェック**（同じ実行が短期間に重複しないためのガード）: `last_processed_at` が `null`（まだ一度も処理されていない）なら即クリア。そうでなければ、`recurringFrequency` に応じた最小間隔（`daily`＝20時間、`weekly`＝6日、`monthly`＝27日、いずれもRoutineが6時間おきに動く前提の概算）以上経過していること。
+       2. **曜日・日にち・時刻チェック**（`recurringDayOfWeek`/`recurringDayOfMonth`/`recurringTime` が設定されている場合のみ、追加で満たす必要がある。`null`のものはチェックをスキップ＝いつでも良い）:
+          - `recurringFrequency: "weekly"` かつ `recurringDayOfWeek` が設定されている → 今日の曜日（0=日曜〜6=土曜）が一致すること。
+          - `recurringFrequency: "monthly"` かつ `recurringDayOfMonth` が設定されている → 今日の日にちが一致すること（その月にその日が存在しない場合は、その月の最終日を代わりに一致とみなす。例: 31日指定で2月なら28日/29日を最終実行日とする）。
+          - `recurringTime` が設定されている → 現在時刻がその時刻以降であること（例: `09:00` 指定なら、9時台以降のRoutine実行で初めて対象になる）。
+          時刻判定は日本時間（JST, UTC+9）を基準にする。厳密なcronではなく「その日の、その時刻以降に最初にRoutineが動いたとき」に処理される程度の精度でよい（Routine自体が6時間おきなので、それ以上の精度は出せない）。bashで今日のJST基準の曜日・日にち・時刻を得る例:
+          ```bash
+          TZ=Asia/Tokyo date +%u  # 曜日: 1=月〜7=日（recurringDayOfWeekの0=日曜始まりとはズレるので変換に注意。%uの7を0に読み替える）
+          TZ=Asia/Tokyo date +%d  # 日にち: 01〜31
+          TZ=Asia/Tokyo date +%H:%M  # 現在時刻
+          ```
+     - `custom` の場合: `recurringCustomDates` 配列の中に、まだ `history` に記録されていない（＝その日付の実行記録が `history` の要素に無い）日付があり、かつその日付＋`recurringTime`（未指定なら`00:00`扱い、JST基準）を**過ぎているもの**が1つ以上あれば対象。該当する未処理日付が複数ある場合、その回は**最も古い（早い）ものだけ**を処理対象日とする（残りは次回以降のRoutine実行で処理する）。
    - 上記プール全体から **最大3件** まで（暴走・コスト膨張防止）。`priority` が大きい（5に近い）ものを優先し、次に「単発pendingは`created_at`が古い順」「定期activeは次の実行予定日を過ぎている度合いが大きい順」を目安に選ぶ。
 4. 処理対象がなければ、その旨（「単発の未処理も、期限が来た定期メモも無し」等）を短く報告して終了する（無理に何かを作らない）。
 5. 各対象メモについて、以下を順に行う。
 
    a. `slug` を決める。メモに既に `slug` フィールドが設定されていれば（＝2回目以降の定期実行）、**それをそのまま再利用する**（タイトルが編集されていても変えない — 変えると履歴フォルダが分裂する）。まだ無ければ新規に決める:
-      - 単発（`researchMode: "once"`）、および定期の `recurringFrequency: "custom"`（一度きりの実行で単発と同じ終端状態になるため）: 従来通り `<today>-<title-slug>`（例: `2026-09-04-ai-copyright-issues`。日付は今日の日付、以降は英数字・ハイフンのみのタイトル要約）。
-      - 定期（`researchMode: "recurring"`）の `daily`/`weekly`/`monthly`: 日付を含めない安定した形 `<title-slug>`（例: `ai-copyright-issues-weekly`）。以後の実行でずっとこの `slug` を使い続けるので、`PUT /api/memos/<id>` で `{"slug": "<決めたslug>"}` を送って必ず永続化しておく。
+      - 単発（`researchMode: "once"`）: 従来通り `<today>-<title-slug>`（例: `2026-09-04-ai-copyright-issues`。日付は今日の日付、以降は英数字・ハイフンのみのタイトル要約）。
+      - 定期（`researchMode: "recurring"`）の `daily`/`weekly`/`monthly`/`custom` すべて: 日付を含めない安定した形 `<title-slug>`（例: `ai-copyright-issues-weekly`）。以後の実行でずっとこの `slug` を使い続けるので、`PUT /api/memos/<id>` で `{"slug": "<決めたslug>"}` を送って必ず永続化しておく（`custom` も複数の日付にわたって繰り返し処理されるため、他の定期メモと同様に安定させる必要がある）。
 
-   b. 出力先ディレクトリを決める。単発、および `recurringFrequency: "custom"` なら `output/<slug>/`、定期の `daily`/`weekly`/`monthly` なら `output/<slug>/<today>/`（`<today>` は今日の日付、`YYYY-MM-DD`）。以降の手順の `output/<slug>/` はこのディレクトリを指す。
+   b. 出力先ディレクトリを決める。単発なら `output/<slug>/`、定期（`daily`/`weekly`/`monthly`/`custom` すべて）なら `output/<slug>/<date>/`。`<date>` は `daily`/`weekly`/`monthly` の場合は今日の日付（`YYYY-MM-DD`）、`custom` の場合は手順3で選んだ「今回処理する対象日」（`recurringCustomDates` のうち期限が来ている最古の未処理日付）。以降の手順の `output/<slug>/` はこのディレクトリを指す。
 
    c. メモの `outputTypes` を見て、`article` / `video` のうちどれを生成するか決める（フィールドが無い古いメモは両方とも生成する）。
 
@@ -69,7 +71,7 @@ description: Fetches pending entries (plus due recurring entries whose researchM
       2. **article-writer** エージェント — `outputTypes` に `"article"` が含まれる場合のみ呼び出す。上記 research brief の内容とメモの `title` / `brief` を渡し、`article.md` に記事下書きを書かせる。
       3. **video-composer** エージェント — `outputTypes` に `"video"` が含まれる場合のみ呼び出す。article-writer を呼んでいれば article の内容を、呼んでいなければ research brief の内容を渡し、`video-structure.md` にショート動画構成を書かせる。
 
-   f. 生成した（`research.md`・`screenshot.<拡張子>` 以外の）ファイルの中身を、それぞれメモアプリにアップロードする（メモアプリのWeb UIから直接読めるようにするため。`research.md`・スクリーンショットはアップロードしない — スクリーンショットは元々Web UI側にあるものを取得しただけ）。**`daily`/`weekly`/`monthly` の定期メモの場合は `?date=<today>` を付ける**（単発、および `recurringFrequency: "custom"` は付けない）:
+   f. 生成した（`research.md`・`screenshot.<拡張子>` 以外の）ファイルの中身を、それぞれメモアプリにアップロードする（メモアプリのWeb UIから直接読めるようにするため。`research.md`・スクリーンショットはアップロードしない — スクリーンショットは元々Web UI側にあるものを取得しただけ）。**定期（`daily`/`weekly`/`monthly`/`custom` すべて）の場合は `?date=<date>` を付ける**（単発は付けない）。`<date>` は手順bで決めたものと同じ（`custom` の場合は今日の日付ではなく処理対象の日付）:
       ```bash
       # 単発の場合の例（article-writer を呼んだ場合）
       curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: text/markdown" \
@@ -80,19 +82,19 @@ description: Fetches pending entries (plus due recurring entries whose researchM
       ```
 
    g. アップロードが終わったら、`PUT {本番URL}/api/memos/<id>` を叩いてメモの状態を更新する。`outputs` には実際に生成・アップロードした種類だけを `true` で含める（`research` は含めない）。
-      - **単発、および `recurringFrequency: "custom"`** の場合: 一度きりの実行として終端する。
+      - **単発**の場合: 一度きりの実行として終端する。
         ```bash
         curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: application/json" \
           -d '{"status":"drafted","outputs":{"article":true,"video":true}}' \
           "$BASE_URL/api/memos/<id>"
         ```
-        （`custom` の場合も `status` は `"drafted"` にする。`"active"` にはしない — 指定した日時に1回実行したら、以後は単発メモと同じ完了扱いになる。`history` への追記や `last_processed_at` の更新は不要）
-      - **定期（`daily`/`weekly`/`monthly`）**の場合: `status` は `"active"` にし（`done`/`archived`にはしない — ユーザーが手動でアーカイブしない限り継続する）、`last_processed_at` を今の時刻に、`history` は**既存の配列にその回の記録を追記**したものにする（GETで取得した既存の `history` 配列 + 今回分。上書きではなく追記）:
+      - **定期（`daily`/`weekly`/`monthly`/`custom` すべて）**の場合: `status` は `"active"` にし（`done`/`archived`にはしない — ユーザーが手動でアーカイブしない限り継続する）、`last_processed_at` を今の時刻に、`history` は**既存の配列にその回の記録を追記**したものにする（GETで取得した既存の `history` 配列 + 今回分。上書きではなく追記）。`history` に追記する要素の `date` は、`daily`/`weekly`/`monthly` なら今日の日付、`custom` なら手順bで決めた処理対象日:
         ```bash
         curl -s -X PUT -H "Authorization: Bearer $PIPELINE_TOKEN" -H "Content-Type: application/json" \
           -d '{"status":"active","outputs":{"article":true,"video":true},"last_processed_at":"2026-09-07T09:00:00Z","history":[...既存の履歴..., {"date":"2026-09-07","outputs":{"article":true,"video":true}}]}' \
           "$BASE_URL/api/memos/<id>"
         ```
+        （`custom` の場合、`recurringCustomDates` 配列自体は変更しない — 処理済みかどうかは `history` に同じ `date` の記録があるかどうかで判定する）
       （Web UIはこの `outputs` のキーの有無で「見る」ボタンの表示を、`history` の中身で過去の実行を日付付きで一覧表示する）
 
 6. すべて処理し終えたら、`output/` 配下の新規ファイル（`.md` のみ。**`screenshot.<拡張子>` はリポジトリにコミットしない** — 元データはVercel Blob側に既にあり、画像バイナリを毎回コミットするとリポジトリが肥大化するため、処理が終わったら削除するかgit addの対象から外す）を git add / commit し、`git push origin claude/research-article-automation-u3efhq` で明示的にこのブランチへ push する（リポジトリ内にも下書きの記録を残すため。`memos.json` はAPI経由で既に更新済みなのでコミット対象ではない）。push が失敗した場合は理由（権限不足など）を最終報告に必ず含める。
@@ -104,6 +106,6 @@ description: Fetches pending entries (plus due recurring entries whose researchM
 - 記事やショート動画構成を **自動で Note や SNS に投稿・公開しない**。あくまで下書き生成と保存まで。
 - サブエージェントが生成した内容に明らかな誤りや根拠のない主張がないか、コミット前に軽く目を通す。事実関係が怪しい場合は報告に明記する。
 - 1回の実行で処理件数を3件に絞っているのは、無制限にリサーチ・記事生成が走ってコスト・時間が膨らむのを防ぐため。ユーザーから明示的に「全部処理して」「もっと処理して」と言われた場合はその指示に従ってよい。
-- 定期メモ（`researchMode: "recurring"`）は一度処理しても消えたり完了扱いになったりしない。ユーザーが手動で `done`/`archived` に変更するまで `active` のまま残り、頻度が来るたびに何度でも処理対象に入る。`slug` を毎回同じに保つこと（履歴が分裂しないように）。**ただし `recurringFrequency: "custom"` だけは例外** — 指定した日時に1回処理したら単発と同じ `"drafted"` で終端し、それ以上は繰り返さない。
+- 定期メモ（`researchMode: "recurring"`）は一度処理しても消えたり完了扱いになったりしない。ユーザーが手動で `done`/`archived` に変更するまで `active` のまま残り、頻度が来るたびに（`custom` の場合は `recurringCustomDates` の中の未処理日付が来るたびに）何度でも処理対象に入る。`slug` を毎回同じに保つこと（履歴が分裂しないように）。`custom` は他の頻度と挙動そのもの（`active`のまま残る・`history`に蓄積する・`slug`を固定する）は同じで、次回実行日を決まった周期ではなく明示的な日付リスト（`recurringCustomDates`）で管理する点だけが異なる。
 - APIが401を返す場合、`PIPELINE_TOKEN` が間違っているか失効している。推測で再試行せず、ユーザーに報告する。
 - Routine（定期実行）から呼ばれる場合、会話の文脈は無いことがある。このファイルと `CLAUDE.md` / `docs/deployment.md` だけを頼りに独立して完結できるようにすること。

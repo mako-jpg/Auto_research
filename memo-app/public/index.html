@@ -102,8 +102,16 @@
           <select id="recurring-day-of-month"></select>
         </div>
         <div class="field-block" id="recurring-custom-date-block" hidden>
-          <span class="field-label">日付</span>
-          <input type="date" id="recurring-custom-date">
+          <span class="field-label">日付（複数選択可）</span>
+          <div class="custom-calendar">
+            <div class="custom-calendar-header">
+              <button type="button" class="secondary" id="recurring-calendar-prev" aria-label="前の月">←</button>
+              <span id="recurring-calendar-label"></span>
+              <button type="button" class="secondary" id="recurring-calendar-next" aria-label="次の月">→</button>
+            </div>
+            <div class="custom-calendar-grid" id="recurring-calendar-grid"></div>
+          </div>
+          <div class="custom-date-chips" id="recurring-custom-date-chips"></div>
         </div>
         <div class="field-block" id="recurring-time-block" hidden>
           <span class="field-label">時刻（任意）</span>
@@ -186,8 +194,16 @@
           <select id="edit-recurring-day-of-month"></select>
         </div>
         <div class="field-block" id="edit-recurring-custom-date-block" hidden>
-          <span class="field-label">日付</span>
-          <input type="date" id="edit-recurring-custom-date">
+          <span class="field-label">日付（複数選択可）</span>
+          <div class="custom-calendar">
+            <div class="custom-calendar-header">
+              <button type="button" class="secondary" id="edit-recurring-calendar-prev" aria-label="前の月">←</button>
+              <span id="edit-recurring-calendar-label"></span>
+              <button type="button" class="secondary" id="edit-recurring-calendar-next" aria-label="次の月">→</button>
+            </div>
+            <div class="custom-calendar-grid" id="edit-recurring-calendar-grid"></div>
+          </div>
+          <div class="custom-date-chips" id="edit-recurring-custom-date-chips"></div>
         </div>
         <div class="field-block" id="edit-recurring-time-block" hidden>
           <span class="field-label">時刻（任意）</span>

@@ -8,7 +8,7 @@ import {
   normalizeDayOfWeek,
   normalizeDayOfMonth,
   normalizeRecurringTime,
-  normalizeCustomDate,
+  normalizeCustomDates,
   normalizeSourceUrl,
 } from "../../lib/schema.js";
 import { loadMemos, saveMemos } from "../../lib/store.js";
@@ -63,8 +63,8 @@ export default async function handler(req, res) {
     if (payload.recurringTime !== undefined) {
       payload.recurringTime = normalizeRecurringTime(payload.recurringTime);
     }
-    if (payload.recurringCustomDate !== undefined) {
-      payload.recurringCustomDate = normalizeCustomDate(payload.recurringCustomDate);
+    if (payload.recurringCustomDates !== undefined) {
+      payload.recurringCustomDates = normalizeCustomDates(payload.recurringCustomDates);
     }
     if (payload.sourceUrl !== undefined) {
       payload.sourceUrl = normalizeSourceUrl(payload.sourceUrl);
@@ -82,7 +82,7 @@ export default async function handler(req, res) {
       "recurringDayOfWeek",
       "recurringDayOfMonth",
       "recurringTime",
-      "recurringCustomDate",
+      "recurringCustomDates",
       "sourceUrl",
       "status",
       "outputs",

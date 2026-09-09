@@ -46,11 +46,11 @@ export function normalizeRecurringTime(input) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(trimmed) ? trimmed : null;
 }
 
-export function normalizeCustomDate(input) {
+export function normalizeCustomDates(input) {
   if (input === undefined) return undefined;
-  if (input === null || input === "") return null;
-  const trimmed = String(input).trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
+  const list = Array.isArray(input) ? input : [];
+  const valid = list.filter((d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d));
+  return [...new Set(valid)].sort();
 }
 
 export function normalizeSourceUrl(input) {

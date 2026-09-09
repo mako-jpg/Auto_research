@@ -79,7 +79,6 @@ const recurringCalendarPrev = document.getElementById("recurring-calendar-prev")
 const recurringCalendarNext = document.getElementById("recurring-calendar-next");
 const recurringCalendarLabel = document.getElementById("recurring-calendar-label");
 const recurringCalendarGrid = document.getElementById("recurring-calendar-grid");
-const recurringCustomDateChips = document.getElementById("recurring-custom-date-chips");
 const recurringTimeBlock = document.getElementById("recurring-time-block");
 const recurringTimeInput = document.getElementById("recurring-time");
 const sourceUrlInput = document.getElementById("source-url");
@@ -135,7 +134,6 @@ const editRecurringCalendarPrev = document.getElementById("edit-recurring-calend
 const editRecurringCalendarNext = document.getElementById("edit-recurring-calendar-next");
 const editRecurringCalendarLabel = document.getElementById("edit-recurring-calendar-label");
 const editRecurringCalendarGrid = document.getElementById("edit-recurring-calendar-grid");
-const editRecurringCustomDateChips = document.getElementById("edit-recurring-custom-date-chips");
 const editRecurringTimeBlock = document.getElementById("edit-recurring-time-block");
 const editRecurringTimeInput = document.getElementById("edit-recurring-time");
 const editError = document.getElementById("edit-error");
@@ -565,37 +563,11 @@ function renderCustomCalendar(gridEl, labelEl, monthDate, selectedSet, onToggleD
   }
 }
 
-function renderCustomDateChips(container, selectedSet, onRemove) {
-  container.innerHTML = "";
-  for (const date of [...selectedSet].sort()) {
-    const chip = document.createElement("span");
-    chip.className = "custom-date-chip";
-    chip.textContent = date;
-    const removeBtn = document.createElement("button");
-    removeBtn.type = "button";
-    removeBtn.className = "custom-date-chip-remove";
-    removeBtn.textContent = "×";
-    removeBtn.setAttribute("aria-label", `${date}を削除`);
-    removeBtn.addEventListener("click", () => onRemove(date));
-    chip.appendChild(removeBtn);
-    container.appendChild(chip);
-  }
-}
-
 function renderFormCustomCalendar() {
   renderCustomCalendar(recurringCalendarGrid, recurringCalendarLabel, formCalendarMonth, formCustomDates, (dateStr) => {
     if (formCustomDates.has(dateStr)) formCustomDates.delete(dateStr);
     else formCustomDates.add(dateStr);
     renderFormCustomCalendar();
-    renderFormCustomDateChips();
-  });
-}
-
-function renderFormCustomDateChips() {
-  renderCustomDateChips(recurringCustomDateChips, formCustomDates, (date) => {
-    formCustomDates.delete(date);
-    renderFormCustomCalendar();
-    renderFormCustomDateChips();
   });
 }
 
@@ -604,15 +576,6 @@ function renderEditCustomCalendar() {
     if (editCustomDates.has(dateStr)) editCustomDates.delete(dateStr);
     else editCustomDates.add(dateStr);
     renderEditCustomCalendar();
-    renderEditCustomDateChips();
-  });
-}
-
-function renderEditCustomDateChips() {
-  renderCustomDateChips(editRecurringCustomDateChips, editCustomDates, (date) => {
-    editCustomDates.delete(date);
-    renderEditCustomCalendar();
-    renderEditCustomDateChips();
   });
 }
 
@@ -654,10 +617,7 @@ function renderRecurringFrequencyPicker() {
     formRecurringFrequency = key;
     if (key !== "weekly") formDayOfWeek = null;
     if (key !== "monthly") recurringDayOfMonthSelect.value = "";
-    if (key !== "custom") {
-      formCustomDates.clear();
-      renderFormCustomDateChips();
-    }
+    if (key !== "custom") formCustomDates.clear();
     renderRecurringFrequencyPicker();
     renderFormDayOfWeekPicker();
     renderFormCustomCalendar();
@@ -693,10 +653,7 @@ function renderEditRecurringFrequencyPicker() {
     editRecurringFrequencyValue = key;
     if (key !== "weekly") editDayOfWeek = null;
     if (key !== "monthly") editRecurringDayOfMonthSelect.value = "";
-    if (key !== "custom") {
-      editCustomDates.clear();
-      renderEditCustomDateChips();
-    }
+    if (key !== "custom") editCustomDates.clear();
     renderEditRecurringFrequencyPicker();
     renderEditDayOfWeekPicker();
     renderEditCustomCalendar();
@@ -934,7 +891,6 @@ memoEditBtn.addEventListener("click", () => {
   renderEditRecurringFrequencyPicker();
   renderEditDayOfWeekPicker();
   renderEditCustomCalendar();
-  renderEditCustomDateChips();
   editRecurringFrequencyBlock.hidden = editResearchModeValue !== "recurring";
   updateFrequencyDetailVisibility(
     editResearchModeValue,
@@ -1090,7 +1046,6 @@ form.addEventListener("submit", async (e) => {
   renderRecurringFrequencyPicker();
   renderFormDayOfWeekPicker();
   renderFormCustomCalendar();
-  renderFormCustomDateChips();
   recurringFrequencyBlock.hidden = true;
   recurringDayOfWeekBlock.hidden = true;
   recurringDayOfMonthBlock.hidden = true;
@@ -1130,6 +1085,5 @@ renderResearchModePicker();
 renderRecurringFrequencyPicker();
 renderFormDayOfWeekPicker();
 renderFormCustomCalendar();
-renderFormCustomDateChips();
 fetchMemos();
 fetchCategories();

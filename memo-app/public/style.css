@@ -450,38 +450,6 @@ button.danger:hover { background: var(--tag-red-bg); opacity: 1; }
 }
 .custom-calendar-day.empty { background: transparent; cursor: default; pointer-events: none; }
 
-.custom-date-chips {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-.custom-date-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--hover-bg);
-  color: var(--text);
-  border-radius: 999px;
-  padding: 5px 6px 5px 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-.custom-date-chip-remove {
-  align-self: auto;
-  background: transparent;
-  color: var(--muted);
-  border: none;
-  border-radius: 999px;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  font-size: 0.85rem;
-  line-height: 1;
-  cursor: pointer;
-}
-.custom-date-chip-remove:hover { background: var(--border); opacity: 1; color: var(--text); }
-
 .memo-outputs { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
 
 .memo-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }

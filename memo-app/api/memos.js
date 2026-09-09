@@ -59,7 +59,7 @@ export default async function handler(req, res) {
       brief,
       categories: normalizeCategories(payload.categories),
       priority,
-      outputTypes: normalizeOutputTypes(payload.outputTypes) || ["article", "video"],
+      outputTypes: normalizeOutputTypes(payload.outputTypes) || ["research", "article", "video"],
       researchMode: normalizeResearchMode(payload.researchMode) || "once",
       recurringFrequency: normalizeRecurringFrequency(payload.recurringFrequency) || "weekly",
       recurringDayOfWeek: normalizeDayOfWeek(payload.recurringDayOfWeek) ?? null,

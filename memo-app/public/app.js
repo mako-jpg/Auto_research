@@ -7,9 +7,9 @@ const STATUS_LABELS = {
   archived: "アーカイブ",
 };
 
-const OUTPUT_LABELS = { article: "記事下書き", video: "動画構成" };
-const OUTPUT_TYPE_KEYS = ["article", "video"];
-const DEFAULT_OUTPUT_TYPES = ["article", "video"];
+const OUTPUT_LABELS = { research: "リサーチ結果", article: "記事下書き", video: "動画構成" };
+const OUTPUT_TYPE_KEYS = ["research", "article", "video"];
+const DEFAULT_OUTPUT_TYPES = ["research", "article", "video"];
 const DEFAULT_PRIORITY = 3;
 const FILTER_STATUSES = ["pending", "researching", "active", "done"];
 const EDITABLE_STATUSES = ["pending", "done", "archived"];

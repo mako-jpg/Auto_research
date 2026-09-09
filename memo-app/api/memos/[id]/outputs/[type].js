@@ -1,7 +1,7 @@
 import { isAuthenticated } from "../../../../lib/auth.js";
 import { loadMemos, loadOutput, saveOutput } from "../../../../lib/store.js";
 
-const VALID_TYPES = new Set(["article", "video"]);
+const VALID_TYPES = new Set(["research", "article", "video"]);
 
 export default async function handler(req, res) {
   if (!isAuthenticated(req)) {

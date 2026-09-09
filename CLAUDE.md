@@ -1,12 +1,12 @@
 # Auto_research
 
-個人のリサーチ → Note記事下書き → ショート動画構成、を自動化するプロジェクト。
+個人のリサーチを自動化するプロジェクト。メインの成果物は「わかりやすい文章でまとめたリサーチ結果」で、そこから任意でNote記事下書き・ショート動画構成も作れる。
 
 ## 全体像
 
 1. **`memo-app/`** — Vercelにデプロイして使う自作Webメモアプリ（Vercel Serverless Functions + Vercel Blob）。「リサーチしてほしいトピック」を記録する。メモ本体はVercel Blob上のJSON（`memos.json`）に保存される（このリポジトリのgit管理下ではない）。デプロイ先URLは `docs/deployment.md` を参照。
 2. **`.claude/agents/`** — パイプラインで使うサブエージェント定義。
-   - `researcher` — Web検索でトピックを調査し、出典付きのリサーチブリーフを作る
+   - `researcher` — Web検索でトピックを調査し、ユーザー本人がそのまま読んでわかりやすい、出典付きの平易な文章のリサーチ結果を作る
    - `article-writer` — リサーチブリーフからNote記事の下書きを書く
    - `video-composer` — 記事からショート動画（Shorts/TikTok/Reels想定）の構成・台本を作る
 3. **`.claude/skills/research-pipeline/SKILL.md`** — デプロイ済みメモアプリのAPIからメモを取得し、3つのサブエージェントを順番に呼び出して `output/` 配下に成果物を作るオーケストレーションスキル。手動なら `/research-pipeline` として呼び出せる。
@@ -15,7 +15,7 @@
 
 ## メモアプリのアーキテクチャ（`memo-app/`）
 
-- `api/` — Vercel Serverless Functions（Node.js）。`login.js`（人間のログイン）/ `logout.js` / `memos.js`（一覧取得・作成）/ `memos/[id].js`（更新・削除）/ `memos/[id]/outputs/[type].js`（生成物本文のアップロード・取得。`type` は `article`/`video`。リサーチ内容はWeb UI上のアップロード対象ではない。クエリパラメータ `?date=YYYY-MM-DD` を付けると、定期メモのその日付時点の生成物を個別に読み書きできる。省略時は常に「最新」を読み書きする）/ `memos/[id]/screenshot.js`（メモに添付したスクリーンショット画像のアップロード（PUT、body は生の画像バイナリ、`Content-Type: image/*`）・取得（GET）・削除（DELETE））/ `categories.js`（カテゴリ一覧取得・追加）。
+- `api/` — Vercel Serverless Functions（Node.js）。`login.js`（人間のログイン）/ `logout.js` / `memos.js`（一覧取得・作成）/ `memos/[id].js`（更新・削除）/ `memos/[id]/outputs/[type].js`（生成物本文のアップロード・取得。`type` は `research`/`article`/`video`。クエリパラメータ `?date=YYYY-MM-DD` を付けると、定期メモのその日付時点の生成物を個別に読み書きできる。省略時は常に「最新」を読み書きする）/ `memos/[id]/screenshot.js`（メモに添付したスクリーンショット画像のアップロード（PUT、body は生の画像バイナリ、`Content-Type: image/*`）・取得（GET）・削除（DELETE））/ `categories.js`（カテゴリ一覧取得・追加）。
 - `lib/store.js` — Vercel Blob（`memos.json`、`categories.json`、`outputs/<id>/<type>.md` の「最新」生成物本文、定期メモの過去分は `outputs/<id>/<type>/<date>.md`、スクリーンショット画像は `screenshots/<id>`）への読み書き。
 - `lib/schema.js` — 優先度（1〜5の整数）・カテゴリ配列・生成する項目（`outputTypes`）・リサーチ方法（`researchMode`/`recurringFrequency`/`recurringDayOfWeek`/`recurringDayOfMonth`/`recurringCustomDates`/`recurringTime`）・参照URL（`sourceUrl`）のバリデーション共通処理。
 - `lib/auth.js` — 認証。**2種類の独立した資格情報**を使う:
@@ -36,7 +36,7 @@
       "brief": "何を・どんな角度でリサーチしてほしいか",
       "categories": ["AI", "マーケティング"],
       "priority": 3,
-      "outputTypes": ["article", "video"],
+      "outputTypes": ["research", "article", "video"],
       "researchMode": "once",
       "recurringFrequency": "weekly",
       "recurringDayOfWeek": null,
@@ -60,7 +60,9 @@
 
 `priority` は1〜5の整数（デフォルト3、大きいほど優先度が高い）。`categories` はユーザーが `categories.json`（同じくVercel Blob上、`GET/POST /api/categories` で管理）に登録した名前の中から選んだもの。
 
-`outputTypes` はそのメモについてAIに生成させる項目（`"article"`＝記事下書き / `"video"`＝動画構成、いずれか1つ以上。デフォルトは両方）。ユーザーがメモ作成・編集フォームのボタンで選ぶ。**`"research"`（リサーチ）は選択肢ではない** — リサーチはパイプラインが常に内部的に行う下調べのステップであり、`output/<slug>/research.md` としてリポジトリには残すが、Web UI上の生成物（`outputs`）としては扱わない・アップロードしない。
+`outputTypes` はそのメモについてWeb UIで見られるようにする項目（`"research"`＝リサーチ結果 / `"article"`＝記事下書き / `"video"`＝動画構成、いずれか1つ以上。デフォルトは3つとも）。ユーザーがメモ作成・編集フォームのボタンで選ぶ。**ただし researcher（リサーチ）自体は `outputTypes` の選択に関わらず毎回必ず実行される** — `"article"`/`"video"` はそのリサーチ結果を元ネタに書かれるので、常にリサーチが先に必要なため。`outputTypes` が実際に左右するのは「`article`/`video` をそもそも生成するか」と「生成された `research`/`article`/`video` のうちどれをWeb UI上の生成物（`outputs`）としてアップロード・表示するか」の2点。
+
+Web UIでは「リサーチ結果」タブがメイン画面で、Note向けに整形された記事文体ではなく、ユーザー本人がそのまま読んでわかりやすい平易な文章でまとめられる。記事下書き・動画構成は、そのリサーチ結果をもとにした派生成果物という位置づけ。
 
 `sourceUrl` はユーザーが貼り付けた参照URL（InstagramやX、YouTubeの投稿URLなど、任意）。`screenshot` はユーザーが添付したスクリーンショット画像が存在するかを表す真偽値で、実際の画像本体はこのフィールドには入らず `GET/PUT/DELETE /api/memos/<id>/screenshot` でVercel Blob（`screenshots/<id>`）に読み書きされる（`screenshot` フィールド自体はこのエンドポイント経由でのみ更新され、`PUT /api/memos/<id>` の汎用更新では変更できない）。どちらもリサーチの「種」として使われる — パイプラインはこれらがあれば、まずそのスクリーンショット/URLの中身を把握してから、それを起点にリサーチする（詳細は `SKILL.md` と `.claude/agents/researcher.md` を参照）。
 
@@ -74,11 +76,11 @@
 
 `status` は単発メモでは `pending` → `researching` → `drafted` → `done`（または `archived`）と遷移する。定期メモでは `pending`（未処理）→（初回処理後）`active`（定期実行中。以後ずっとこの状態を保つ）と遷移し、ユーザーが手動で `done`/`archived` に変更しない限り `active` のまま処理され続ける — つまり定期メモは1回処理して終わりにならず、メモ一覧に残り続ける。パイプラインが処理対象として拾うのは、単発では `pending` のもの、定期では `pending`（初回）または `active` かつ「頻度に基づいて次の実行予定日を過ぎている」もの（`last_processed_at` と `recurringFrequency` から判定。詳細は `SKILL.md` 参照）。
 
-処理が終わったら、そのメモの `outputTypes` に含まれる項目だけ生成し、`outputs` を `{"article": true, "video": true}` のように更新する（生成できた種類だけ `true`。キーは `article`/`video` のみで `research` は含めない）。生成物の本文自体はこの `outputs` フィールドには入らず、`PUT /api/memos/<id>/outputs/<type>` で別途Vercel Blobにアップロードされ、Web UIから記事下書き/動画構成それぞれの専用ページで読める。リポジトリの `output/<slug>/*.md`（research.mdも含む）にも同じ内容がコミットされる（バックアップ・レビュー履歴用）。
+処理が終わったら、`outputTypes` に含まれる種類（`research`/`article`/`video`）だけを `outputs` に `true` で反映する（例: `{"research": true, "article": true, "video": true}`）。生成物の本文自体はこの `outputs` フィールドには入らず、`PUT /api/memos/<id>/outputs/<type>` で別途Vercel Blobにアップロードされ、Web UIからリサーチ結果/記事下書き/動画構成それぞれの専用タブで読める。リポジトリの `output/<slug>/*.md`（research.mdも含む）にも同じ内容がコミットされる（バックアップ・レビュー履歴用。`research.md`自体は`outputTypes`の選択に関わらず毎回生成される）。
 
-定期メモの場合はさらに、`last_processed_at` を実行時刻に更新し、`history` にその回の実行を追記する（`{"date": "YYYY-MM-DD", "outputs": {"article": true}}` の形。既存の履歴は消さず追記のみ）。生成物のアップロードも `PUT /api/memos/<id>/outputs/<type>?date=<今日の日付>` の形で行い、その日付のスナップショットとして残す（サーバー側で「最新」のコピーも自動的に同期されるので、日付なしGETは常に最新を返す）。Web UIのリサーチページでは、定期メモを開くと過去の実行が日付付きで一覧・切り替えできる。
+定期メモの場合はさらに、`last_processed_at` を実行時刻に更新し、`history` にその回の実行を追記する（`{"date": "YYYY-MM-DD", "outputs": {"research": true, "article": true}}` の形。既存の履歴は消さず追記のみ）。生成物のアップロードも `PUT /api/memos/<id>/outputs/<type>?date=<今日の日付>` の形で行い、その日付のスナップショットとして残す（サーバー側で「最新」のコピーも自動的に同期されるので、日付なしGETは常に最新を返す）。Web UIのリサーチページでは、定期メモを開くと過去の実行が日付付きで一覧・切り替えできる。
 
-`obsidianSave` はユーザーが生成物ページ（記事下書き/動画構成を読む画面）の「Obsidianに保存」ボタンで切り替える真偽値（デフォルト`false`）。`PUT /api/memos/<id>` の汎用更新で変更できる。`true`になっているメモは、パイプラインが実行されるたびに`obsidian/<slug>.md`として同期される（詳細は下記「Obsidianへの保存」参照）。
+`obsidianSave` はユーザーが生成物ページ（リサーチ結果/記事下書き/動画構成を読む画面）の「Obsidianに保存」ボタンで切り替える真偽値（デフォルト`false`）。`PUT /api/memos/<id>` の汎用更新で変更できる。`true`になっているメモは、パイプラインが実行されるたびに`obsidian/<slug>.md`として同期される（詳細は下記「Obsidianへの保存」参照）。
 
 ## 定期実行（Routine）
 
@@ -90,7 +92,7 @@ Claude Code の Routine（スケジュールトリガー）が、デプロイ済
 
 リサーチ結果が良かったメモだけ、Obsidianの自分のVaultに取り込めるようにする仕組み。新しい外部サービスや秘密情報は追加せず、既存のGit＋Routineの仕組みをそのまま流用している。
 
-- 仕組み: 生成物ページ（記事下書き/動画構成を読む画面）に「Obsidianに保存」ボタンがあり、押すとそのメモの`obsidianSave`が`true`になる（`PUT /api/memos/<id>`経由）。以後、`/research-pipeline`が実行されるたびに（そのメモ自身が今回リサーチ対象かどうかに関わらず）、そのメモの記事・動画構成・リサーチメモをまとめた1つのノートが`obsidian/<slug>.md`としてこのリポジトリに書き出され、他の生成物と同じ`git commit`/`push`でコミットされる。ノートにはタイトル・カテゴリ（タグ）・ステータス・作成日などをYAMLフロントマターとして付与し、Obsidianのプロパティ/タグ機能から扱えるようにしている。
+- 仕組み: 生成物ページ（リサーチ結果/記事下書き/動画構成を読む画面）に「Obsidianに保存」ボタンがあり、押すとそのメモの`obsidianSave`が`true`になる（`PUT /api/memos/<id>`経由）。以後、`/research-pipeline`が実行されるたびに（そのメモ自身が今回リサーチ対象かどうかに関わらず）、そのメモのリサーチ結果・記事下書き・動画構成をまとめた1つのノートが`obsidian/<slug>.md`としてこのリポジトリに書き出され、他の生成物と同じ`git commit`/`push`でコミットされる。ノートにはタイトル・カテゴリ（タグ）・ステータス・作成日などをYAMLフロントマターとして付与し、Obsidianのプロパティ/タグ機能から扱えるようにしている。
 - ユーザー側の設定: 自分のPCでこのリポジトリをclone（またはpull）し、ObsidianでそのリポジトリのルートフォルダごとVaultとして開くか、既存のVault内に`obsidian/`フォルダをシンボリックリンクする。あとは定期的に`git pull`するだけで、パイプラインが同期した新しいノートがObsidian側にも反映される（リアルタイムではなく「pullしたら反映」）。
 - `obsidian/`フォルダの中身は完全にパイプラインの生成物のミラーなので、Obsidian側で直接編集しても次回のパイプライン実行で上書きされる点に注意（編集したい場合はObsidian側で別ノートにコピーするか、Vault内の別フォルダに置く）。
 

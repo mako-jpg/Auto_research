@@ -41,7 +41,7 @@ description: Fetches pending entries (plus due recurring entries whose researchM
           - `recurringFrequency: "weekly"` かつ `recurringDayOfWeek` が設定されている → 今日の曜日（0=日曜〜6=土曜）が一致すること。
           - `recurringFrequency: "monthly"` かつ `recurringDayOfMonth` が設定されている → 今日の日にちが一致すること（その月にその日が存在しない場合は、その月の最終日を代わりに一致とみなす。例: 31日指定で2月なら28日/29日を最終実行日とする）。
           - `recurringTime` が設定されている → 現在時刻がその時刻以降であること（例: `09:00` 指定なら、9時台以降のRoutine実行で初めて対象になる）。
-          時刻判定は日本時間（JST, UTC+9）を基準にする。厳密なcronではなく「その日の、その時刻以降に最初にRoutineが動いたとき」に処理される程度の精度でよい（Routine自体が1時間おきなので、それ以上の精度は出せない）。bashで今日のJST基準の曜日・日にち・時刻を得る例:
+          時刻判定は日本時間（JST, UTC+9）を基準にする。厳密なcronではなく「その日の、その時刻以降に最初にRoutineが動いたとき」に処理される程度の精度でよい（Routine自体が1日3回・JST 9:33/15:33/21:33にしか動かないので、それ以上の精度は出せない。深夜〜早朝には動かない）。bashで今日のJST基準の曜日・日にち・時刻を得る例:
           ```bash
           TZ=Asia/Tokyo date +%u  # 曜日: 1=月〜7=日（recurringDayOfWeekの0=日曜始まりとはズレるので変換に注意。%uの7を0に読み替える）
           TZ=Asia/Tokyo date +%d  # 日にち: 01〜31

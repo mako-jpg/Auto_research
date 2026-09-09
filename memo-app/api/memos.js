@@ -68,6 +68,7 @@ export default async function handler(req, res) {
       recurringCustomDates: normalizeCustomDates(payload.recurringCustomDates) ?? [],
       sourceUrl: sourceUrl || null,
       screenshot: false,
+      obsidianSave: false,
       status: "pending",
       created_at: nowIso(),
       updated_at: nowIso(),

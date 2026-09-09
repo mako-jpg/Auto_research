@@ -97,6 +97,7 @@ const outputBackBtn = document.getElementById("output-back-btn");
 const outputArticleTags = document.getElementById("output-article-tags");
 const outputPageTitle = document.getElementById("output-page-title");
 const outputArticleDate = document.getElementById("output-article-date");
+const outputObsidianToggle = document.getElementById("output-obsidian-toggle");
 const outputTabs = document.getElementById("output-tabs");
 const outputHistory = document.getElementById("output-history");
 const outputPageContent = document.getElementById("output-page-content");
@@ -228,6 +229,21 @@ function updateOutputByline() {
   outputArticleDate.textContent = formatDisplayDate(dateValue);
 }
 
+function renderOutputObsidianToggle() {
+  const saved = Boolean(currentOutputMemo.obsidianSave);
+  outputObsidianToggle.textContent = saved ? "Obsidianに保存済み" : "Obsidianに保存";
+  outputObsidianToggle.classList.toggle("active", saved);
+}
+
+outputObsidianToggle.addEventListener("click", async () => {
+  const memo = currentOutputMemo;
+  if (!memo) return;
+  const next = !memo.obsidianSave;
+  memo.obsidianSave = next;
+  renderOutputObsidianToggle();
+  await updateMemo(memo.id, { obsidianSave: next });
+});
+
 function renderOutputTabs() {
   const types = availableOutputTypes(currentOutputMemo);
   outputTabs.innerHTML = "";
@@ -314,6 +330,7 @@ function openOutputPage(memo, type) {
   renderOutputTabs();
   renderOutputHistory();
   updateOutputByline();
+  renderOutputObsidianToggle();
   showPage("output");
   loadOutputContent();
 }
@@ -364,6 +381,13 @@ function renderResearchCard(memo) {
   title.className = "research-card-title";
   title.textContent = memo.title;
   card.appendChild(title);
+
+  if (memo.obsidianSave) {
+    const obsidianBadge = document.createElement("span");
+    obsidianBadge.className = "badge tag-purple research-card-obsidian-badge";
+    obsidianBadge.textContent = "Obsidian保存";
+    card.appendChild(obsidianBadge);
+  }
 
   const excerpt = document.createElement("p");
   excerpt.className = "research-card-excerpt";

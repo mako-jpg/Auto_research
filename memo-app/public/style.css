@@ -492,6 +492,7 @@ button.danger:hover { background: var(--tag-red-bg); opacity: 1; }
 }
 
 .research-card-title { margin: 0; font-size: 0.96rem; font-weight: 600; }
+.research-card-obsidian-badge { align-self: flex-start; }
 .research-card-excerpt {
   margin: 0;
   color: var(--muted);
@@ -621,6 +622,25 @@ button.danger:hover { background: var(--tag-red-bg); opacity: 1; }
   background: var(--hover-bg);
   border-radius: 999px;
   padding: 4px 10px;
+}
+
+.output-article-actions { margin-top: 14px; }
+.obsidian-save-btn {
+  align-self: auto;
+  background: var(--hover-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.obsidian-save-btn:hover { opacity: 0.85; }
+.obsidian-save-btn.active {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
 }
 
 .output-tabs {

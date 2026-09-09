@@ -66,6 +66,11 @@ export function normalizeSourceUrl(input) {
   }
 }
 
+export function normalizeBoolean(input) {
+  if (input === undefined) return undefined;
+  return Boolean(input);
+}
+
 export function normalizeCategories(input) {
   const list = Array.isArray(input) ? input : [];
   const seen = new Set();

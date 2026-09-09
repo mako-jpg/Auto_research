@@ -11,6 +11,7 @@
    - `video-composer` — 記事からショート動画（Shorts/TikTok/Reels想定）の構成・台本を作る
 3. **`.claude/skills/research-pipeline/SKILL.md`** — デプロイ済みメモアプリのAPIからメモを取得し、3つのサブエージェントを順番に呼び出して `output/` 配下に成果物を作るオーケストレーションスキル。手動なら `/research-pipeline` として呼び出せる。
 4. **`output/<slug>/`** — 生成された `research.md` / `article.md` / `video-structure.md`。すべて **下書き**。このリポジトリにコミットされる。自動公開はしない。単発メモは `output/<slug>/*.md` 直下、定期メモは `output/<slug>/<date>/*.md`（実行日ごとのサブフォルダ）に積み重なっていく。
+5. **`obsidian/<slug>.md`** — ユーザーが生成物ページで「Obsidianに保存」した（`obsidianSave: true`の）メモだけ、パイプライン実行のたびに1ファイルへまとめて同期される（詳細は下記「Obsidianへの保存」参照）。
 
 ## メモアプリのアーキテクチャ（`memo-app/`）
 
@@ -47,6 +48,7 @@
       "updated_at": "ISO8601",
       "sourceUrl": null,
       "screenshot": false,
+      "obsidianSave": false,
       "outputs": {},
       "history": [],
       "last_processed_at": null,
@@ -76,9 +78,19 @@
 
 定期メモの場合はさらに、`last_processed_at` を実行時刻に更新し、`history` にその回の実行を追記する（`{"date": "YYYY-MM-DD", "outputs": {"article": true}}` の形。既存の履歴は消さず追記のみ）。生成物のアップロードも `PUT /api/memos/<id>/outputs/<type>?date=<今日の日付>` の形で行い、その日付のスナップショットとして残す（サーバー側で「最新」のコピーも自動的に同期されるので、日付なしGETは常に最新を返す）。Web UIのリサーチページでは、定期メモを開くと過去の実行が日付付きで一覧・切り替えできる。
 
+`obsidianSave` はユーザーが生成物ページ（記事下書き/動画構成を読む画面）の「Obsidianに保存」ボタンで切り替える真偽値（デフォルト`false`）。`PUT /api/memos/<id>` の汎用更新で変更できる。`true`になっているメモは、パイプラインが実行されるたびに`obsidian/<slug>.md`として同期される（詳細は下記「Obsidianへの保存」参照）。
+
 ## 定期実行（Routine）
 
 Claude Code の Routine（スケジュールトリガー、6時間おき）が、デプロイ済みメモアプリのAPI（`GET/PUT /api/memos`）を `PIPELINE_TOKEN` で呼び出してpendingメモを取得・更新し、`/research-pipeline` スキルの内容を実行する。詳細は `.claude/skills/research-pipeline/SKILL.md` を参照。
+
+## Obsidianへの保存
+
+リサーチ結果が良かったメモだけ、Obsidianの自分のVaultに取り込めるようにする仕組み。新しい外部サービスや秘密情報は追加せず、既存のGit＋Routineの仕組みをそのまま流用している。
+
+- 仕組み: 生成物ページ（記事下書き/動画構成を読む画面）に「Obsidianに保存」ボタンがあり、押すとそのメモの`obsidianSave`が`true`になる（`PUT /api/memos/<id>`経由）。以後、`/research-pipeline`が実行されるたびに（そのメモ自身が今回リサーチ対象かどうかに関わらず）、そのメモの記事・動画構成・リサーチメモをまとめた1つのノートが`obsidian/<slug>.md`としてこのリポジトリに書き出され、他の生成物と同じ`git commit`/`push`でコミットされる。ノートにはタイトル・カテゴリ（タグ）・ステータス・作成日などをYAMLフロントマターとして付与し、Obsidianのプロパティ/タグ機能から扱えるようにしている。
+- ユーザー側の設定: 自分のPCでこのリポジトリをclone（またはpull）し、ObsidianでそのリポジトリのルートフォルダごとVaultとして開くか、既存のVault内に`obsidian/`フォルダをシンボリックリンクする。あとは定期的に`git pull`するだけで、パイプラインが同期した新しいノートがObsidian側にも反映される（リアルタイムではなく「pullしたら反映」）。
+- `obsidian/`フォルダの中身は完全にパイプラインの生成物のミラーなので、Obsidian側で直接編集しても次回のパイプライン実行で上書きされる点に注意（編集したい場合はObsidian側で別ノートにコピーするか、Vault内の別フォルダに置く）。
 
 ## メモを追加する方法
 

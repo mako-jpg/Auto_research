@@ -10,6 +10,7 @@ import {
   normalizeRecurringTime,
   normalizeCustomDates,
   normalizeSourceUrl,
+  normalizeBoolean,
 } from "../../lib/schema.js";
 import { loadMemos, saveMemos } from "../../lib/store.js";
 
@@ -69,6 +70,9 @@ export default async function handler(req, res) {
     if (payload.sourceUrl !== undefined) {
       payload.sourceUrl = normalizeSourceUrl(payload.sourceUrl);
     }
+    if (payload.obsidianSave !== undefined) {
+      payload.obsidianSave = normalizeBoolean(payload.obsidianSave);
+    }
 
     const memo = memos[index];
     const editableKeys = [
@@ -84,6 +88,7 @@ export default async function handler(req, res) {
       "recurringTime",
       "recurringCustomDates",
       "sourceUrl",
+      "obsidianSave",
       "status",
       "outputs",
       "history",

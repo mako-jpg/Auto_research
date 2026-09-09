@@ -1,6 +1,6 @@
 ---
 name: research-pipeline
-description: Fetches pending entries (plus due recurring entries whose researchMode is "recurring") from the deployed memo app's API (memo-app, hosted on Vercel), and for each one runs the researcher agent (always) followed by article-writer and/or video-composer (whichever the memo's outputTypes selects), saving a research brief, and a Note article draft and/or short-video structure, under output/, then updates the memo's status/history via the API and commits the generated files. A memo may seed the researcher with an attached screenshot image and/or a source URL (Instagram/X/YouTube/etc.) instead of or alongside its text brief, in which case the researcher identifies what that seed shows first and researches broadly around it. Recurring memos stay active and are reprocessed each time their frequency comes due, building up a dated history instead of a single one-off draft. Use when asked to process memos, run the research pipeline, or when a scheduled routine fires to check for new or due memo entries.
+description: Fetches pending entries (plus due recurring entries whose researchMode is "recurring") from the deployed memo app's API (memo-app, hosted on Vercel), and for each one runs the researcher agent (always) followed by article-writer and/or video-composer (whichever the memo's outputTypes selects), saving a research brief, and a Note article draft and/or short-video structure, under output/, then updates the memo's status/history via the API and commits the generated files. A memo may seed the researcher with an attached screenshot image and/or a source URL (Instagram/X/YouTube/etc.) instead of or alongside its text brief, in which case the researcher identifies what that seed shows first and researches broadly around it. Recurring memos stay active and are reprocessed each time their frequency comes due, building up a dated history instead of a single one-off draft. Every run also syncs any memo flagged obsidianSave (toggled via a "save to Obsidian" button in the app's output page) into an obsidian/<slug>.md note in this repo, regardless of whether that memo had new research this run. Use when asked to process memos, run the research pipeline, or when a scheduled routine fires to check for new or due memo entries.
 ---
 
 # Research → Note記事 → ショート動画構成 パイプライン
@@ -21,6 +21,7 @@ description: Fetches pending entries (plus due recurring entries whose researchM
 - 各メモの `outputTypes` フィールド（`["article"]` や `["article","video"]` など）が、そのメモについて生成すべき項目を指定する。ユーザーがメモ作成・編集画面のボタンで選ぶ。**リサーチ（researcherエージェント）は選択肢に関係なく毎回必ず実行する**（記事・動画の元になる下調べのため）。
 - 各メモの `researchMode` フィールドが `"once"`（単発）か `"recurring"`（定期的）かを表す。定期的の場合 `recurringFrequency` が `"daily"`/`"weekly"`/`"monthly"`/`"custom"` のいずれかで頻度を表す。加えて、`recurringFrequency: "weekly"` のとき `recurringDayOfWeek`（0=日曜〜6=土曜。任意、`null`なら指定なし）、`"monthly"` のとき `recurringDayOfMonth`（1〜31。任意、`null`なら指定なし）で曜日・日にちを、`"custom"` のとき `recurringCustomDates`（`["YYYY-MM-DD", ...]` の配列。UIのカレンダーで複数選択可）で実行日を1つ以上、`recurringTime`（`"HH:MM"`。任意、`null`なら指定なし）で希望の実行時刻を指定できる。**`"custom"` は他の3つ（daily/weekly/monthly）と実行タイミングの決め方が違うだけ** — 決まった周期ではなく `recurringCustomDates` の明示的な日付リストで次回実行日を管理する。それ以外の挙動（`active`のまま残り続ける、`history`に実行ごとの記録が蓄積する、`slug`を固定する）は他の定期メモと同じで、配列内の日付を1つずつ、期限が来るたびに処理していく（詳しくは下記手順を参照）。
 - 各メモは `sourceUrl`（参照URL。InstagramやX、YouTubeの投稿URLなど）と `screenshot`（スクリーンショット画像が添付されているかの真偽値）を持つ場合がある。どちらか片方だけ・両方・どちらも無し、いずれもあり得る。researcherエージェントへの入力に必ず含めること（下記手順参照）。
+- 各メモは `obsidianSave`（真偽値。デフォルト`false`）を持つ。ユーザーがメモアプリの生成物ページ（リサーチ結果の表示画面）で「Obsidianに保存」ボタンを押すと`true`になる。`true`のメモは、処理対象かどうかに関わらず**毎回のパイプライン実行時に**`obsidian/<slug>.md`としてこのリポジトリに同期される（詳細は下記手順6）。
 
 ## 手順
 
@@ -48,7 +49,7 @@ description: Fetches pending entries (plus due recurring entries whose researchM
           ```
      - `custom` の場合: `recurringCustomDates` 配列の中に、まだ `history` に記録されていない（＝その日付の実行記録が `history` の要素に無い）日付があり、かつその日付＋`recurringTime`（未指定なら`00:00`扱い、JST基準）を**過ぎているもの**が1つ以上あれば対象。該当する未処理日付が複数ある場合、その回は**最も古い（早い）ものだけ**を処理対象日とする（残りは次回以降のRoutine実行で処理する）。
    - 上記プール全体から **最大3件** まで（暴走・コスト膨張防止）。`priority` が大きい（5に近い）ものを優先し、次に「単発pendingは`created_at`が古い順」「定期activeは次の実行予定日を過ぎている度合いが大きい順」を目安に選ぶ。
-4. 処理対象がなければ、その旨（「単発の未処理も、期限が来た定期メモも無し」等）を短く報告して終了する（無理に何かを作らない）。
+4. 処理対象がなければ、その旨（「単発の未処理も、期限が来た定期メモも無し」等）を記録する（無理に何かを作らない）。ただし**まだここで終了しない** — 手順6のObsidian同期は処理対象の有無と無関係に毎回行うため、そのまま手順5を飛ばして手順6に進む。
 5. 各対象メモについて、以下を順に行う。
 
    a. `slug` を決める。メモに既に `slug` フィールドが設定されていれば（＝2回目以降の定期実行）、**それをそのまま再利用する**（タイトルが編集されていても変えない — 変えると履歴フォルダが分裂する）。まだ無ければ新規に決める:
@@ -97,9 +98,40 @@ description: Fetches pending entries (plus due recurring entries whose researchM
         （`custom` の場合、`recurringCustomDates` 配列自体は変更しない — 処理済みかどうかは `history` に同じ `date` の記録があるかどうかで判定する）
       （Web UIはこの `outputs` のキーの有無で「見る」ボタンの表示を、`history` の中身で過去の実行を日付付きで一覧表示する）
 
-6. すべて処理し終えたら、`output/` 配下の新規ファイル（`.md` のみ。**`screenshot.<拡張子>` はリポジトリにコミットしない** — 元データはVercel Blob側に既にあり、画像バイナリを毎回コミットするとリポジトリが肥大化するため、処理が終わったら削除するかgit addの対象から外す）を git add / commit し、`git push origin claude/research-article-automation-u3efhq` で明示的にこのブランチへ push する（リポジトリ内にも下書きの記録を残すため。`memos.json` はAPI経由で既に更新済みなのでコミット対象ではない）。push が失敗した場合は理由（権限不足など）を最終報告に必ず含める。
+6. **Obsidianへの保存を同期する**（処理対象の有無と無関係に、パイプラインを実行するたびに毎回行う）。
+   a. `GET {本番URL}/api/memos` を叩き直して最新のメモ一覧を取得する（手順5で処理したメモの`slug`/`history`/`status`の更新を反映させるため）。
+   b. `obsidianSave === true` のメモをすべて対象にする（`status`や処理タイミングは問わない）。対象が1件もなければこの手順は何もせず手順7へ進む。
+   c. 各対象メモについて、出力ディレクトリを特定する: 単発（`researchMode: "once"`）なら`output/<slug>/`。定期（`researchMode: "recurring"`）なら`output/<slug>/<date>/`で、`<date>`は`history`配列のうち最新（日付が最も新しい）のエントリの`date`。定期メモで`history`がまだ空（一度も処理されていない）の場合はそのメモをスキップする（同期する内容がまだ無いため）。
+   d. そのディレクトリにある`research.md`・`article.md`・`video-structure.md`のうち実際に存在するものをReadで読む。
+   e. 以下の形式で`obsidian/<slug>.md`を作成（既にあれば上書き）する。Obsidianでタグ・プロパティとして扱えるよう、YAMLフロントマターを付ける:
+      ```markdown
+      ---
+      title: "<memo.title>"
+      tags: [リサーチメモ<memo.categoriesの各要素を", <カテゴリ名>"の形で追加>]
+      status: <memo.status>
+      created: <memo.created_at>
+      source_url: <memo.sourceUrl。無ければこの行自体を省略>
+      memo_id: <memo.id>
+      ---
 
-7. 最後に日本語で簡潔に報告する: 処理したメモのタイトル一覧（単発/定期の別も添える）、それぞれ生成した出力ファイルへのパス（`research.md` は毎回、`article.md`/`video-structure.md` はそのメモの `outputTypes` で選ばれたものだけ）、そして必ず「これは下書きです。公開前に内容を確認してください」と伝える。
+      # <memo.title>
+
+      <article.mdの内容。存在しなければこのセクションごと省略>
+
+      ## 動画構成
+
+      <video-structure.mdの内容。存在しなければこのセクションごと省略>
+
+      ## リサーチメモ（元データ）
+
+      <research.mdの内容。存在しなければこのセクションごと省略>
+      ```
+      （`obsidian/`はこのリポジトリ内の新しいトップレベルフォルダ。ユーザーはこのリポジトリをローカルにクローン/pullし、ObsidianのVault（またはVault内のサブフォルダ）としてこの`obsidian/`フォルダを使う想定。`git pull`するたびに新しく保存されたメモがObsidian側に反映される）。
+   f. `obsidianSave`を`false`に戻したりはしない（ユーザーが明示的にトグルを外すまで保存対象のままにする。以後のパイプライン実行でも同じ`obsidian/<slug>.md`が最新内容で上書きされ続ける）。
+
+7. すべて処理し終えたら、`output/`配下の新規ファイル（`.md`のみ。**`screenshot.<拡張子>`はリポジトリにコミットしない** — 元データはVercel Blob側に既にあり、画像バイナリを毎回コミットするとリポジトリが肥大化するため、処理が終わったら削除するかgit addの対象から外す）と、手順6で書いた`obsidian/`配下の変更を git add / commit し、`git push origin claude/research-article-automation-u3efhq` で明示的にこのブランチへ push する（リポジトリ内にも下書きの記録を残すため。`memos.json`はAPI経由で既に更新済みなのでコミット対象ではない）。push が失敗した場合は理由（権限不足など）を最終報告に必ず含める。
+
+8. 最後に日本語で簡潔に報告する: 処理したメモのタイトル一覧（単発/定期の別も添える）、それぞれ生成した出力ファイルへのパス（`research.md`は毎回、`article.md`/`video-structure.md`はそのメモの`outputTypes`で選ばれたものだけ）、Obsidianへ同期したメモがあればそのタイトル一覧、そして必ず「これは下書きです。公開前に内容を確認してください」と伝える。
 
 ## 注意事項
 
@@ -107,5 +139,6 @@ description: Fetches pending entries (plus due recurring entries whose researchM
 - サブエージェントが生成した内容に明らかな誤りや根拠のない主張がないか、コミット前に軽く目を通す。事実関係が怪しい場合は報告に明記する。
 - 1回の実行で処理件数を3件に絞っているのは、無制限にリサーチ・記事生成が走ってコスト・時間が膨らむのを防ぐため。ユーザーから明示的に「全部処理して」「もっと処理して」と言われた場合はその指示に従ってよい。
 - 定期メモ（`researchMode: "recurring"`）は一度処理しても消えたり完了扱いになったりしない。ユーザーが手動で `done`/`archived` に変更するまで `active` のまま残り、頻度が来るたびに（`custom` の場合は `recurringCustomDates` の中の未処理日付が来るたびに）何度でも処理対象に入る。`slug` を毎回同じに保つこと（履歴が分裂しないように）。`custom` は他の頻度と挙動そのもの（`active`のまま残る・`history`に蓄積する・`slug`を固定する）は同じで、次回実行日を決まった周期ではなく明示的な日付リスト（`recurringCustomDates`）で管理する点だけが異なる。
+- `obsidianSave: true` のメモは、そのメモ自身が今回の処理対象（`pending`/期限到来）でなくても、Obsidian同期（手順6）の対象にはなる。処理対象かどうかとObsidian同期対象かどうかは独立した判定なので混同しないこと。
 - APIが401を返す場合、`PIPELINE_TOKEN` が間違っているか失効している。推測で再試行せず、ユーザーに報告する。
 - Routine（定期実行）から呼ばれる場合、会話の文脈は無いことがある。このファイルと `CLAUDE.md` / `docs/deployment.md` だけを頼りに独立して完結できるようにすること。

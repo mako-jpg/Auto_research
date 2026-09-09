@@ -6,6 +6,9 @@ import {
   normalizeOutputTypes,
   normalizeResearchMode,
   normalizeRecurringFrequency,
+  normalizeDayOfWeek,
+  normalizeDayOfMonth,
+  normalizeRecurringTime,
   normalizeSourceUrl,
 } from "../lib/schema.js";
 import { loadMemos, saveMemos } from "../lib/store.js";
@@ -58,6 +61,9 @@ export default async function handler(req, res) {
       outputTypes: normalizeOutputTypes(payload.outputTypes) || ["article", "video"],
       researchMode: normalizeResearchMode(payload.researchMode) || "once",
       recurringFrequency: normalizeRecurringFrequency(payload.recurringFrequency) || "weekly",
+      recurringDayOfWeek: normalizeDayOfWeek(payload.recurringDayOfWeek) ?? null,
+      recurringDayOfMonth: normalizeDayOfMonth(payload.recurringDayOfMonth) ?? null,
+      recurringTime: normalizeRecurringTime(payload.recurringTime) ?? null,
       sourceUrl: sourceUrl || null,
       screenshot: false,
       status: "pending",

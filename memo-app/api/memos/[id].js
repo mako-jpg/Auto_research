@@ -5,6 +5,9 @@ import {
   normalizeOutputTypes,
   normalizeResearchMode,
   normalizeRecurringFrequency,
+  normalizeDayOfWeek,
+  normalizeDayOfMonth,
+  normalizeRecurringTime,
   normalizeSourceUrl,
 } from "../../lib/schema.js";
 import { loadMemos, saveMemos } from "../../lib/store.js";
@@ -50,6 +53,15 @@ export default async function handler(req, res) {
     if (payload.recurringFrequency !== undefined) {
       payload.recurringFrequency = normalizeRecurringFrequency(payload.recurringFrequency);
     }
+    if (payload.recurringDayOfWeek !== undefined) {
+      payload.recurringDayOfWeek = normalizeDayOfWeek(payload.recurringDayOfWeek);
+    }
+    if (payload.recurringDayOfMonth !== undefined) {
+      payload.recurringDayOfMonth = normalizeDayOfMonth(payload.recurringDayOfMonth);
+    }
+    if (payload.recurringTime !== undefined) {
+      payload.recurringTime = normalizeRecurringTime(payload.recurringTime);
+    }
     if (payload.sourceUrl !== undefined) {
       payload.sourceUrl = normalizeSourceUrl(payload.sourceUrl);
     }
@@ -63,6 +75,9 @@ export default async function handler(req, res) {
       "outputTypes",
       "researchMode",
       "recurringFrequency",
+      "recurringDayOfWeek",
+      "recurringDayOfMonth",
+      "recurringTime",
       "sourceUrl",
       "status",
       "outputs",

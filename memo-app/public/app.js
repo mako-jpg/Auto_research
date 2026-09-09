@@ -20,6 +20,7 @@ const RECURRING_FREQUENCY_LABELS = { daily: "毎日", weekly: "毎週", monthly:
 const RECURRING_FREQUENCY_KEYS = ["daily", "weekly", "monthly"];
 const DEFAULT_RESEARCH_MODE = "once";
 const DEFAULT_RECURRING_FREQUENCY = "weekly";
+const DAY_OF_WEEK_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
 const STATUS_TAG_COLORS = {
   pending: "gray",
@@ -38,6 +39,21 @@ function categoryTagColor(name) {
   return CATEGORY_TAG_COLORS[Math.abs(hash) % CATEGORY_TAG_COLORS.length];
 }
 
+function formatResearchModeBadge(memo) {
+  if (memo.researchMode !== "recurring") return "単発";
+  let label = `定期・${RECURRING_FREQUENCY_LABELS[memo.recurringFrequency] || ""}`;
+  if (memo.recurringFrequency === "weekly" && memo.recurringDayOfWeek !== null && memo.recurringDayOfWeek !== undefined) {
+    label += `(${DAY_OF_WEEK_LABELS[memo.recurringDayOfWeek]})`;
+  }
+  if (memo.recurringFrequency === "monthly" && memo.recurringDayOfMonth) {
+    label += `(${memo.recurringDayOfMonth}日)`;
+  }
+  if (memo.recurringTime) {
+    label += ` ${memo.recurringTime}`;
+  }
+  return label;
+}
+
 const memoList = document.getElementById("memo-list");
 const emptyState = document.getElementById("empty-state");
 const form = document.getElementById("memo-form");
@@ -50,6 +66,12 @@ const outputTypePicker = document.getElementById("output-type-picker");
 const researchModePicker = document.getElementById("research-mode-picker");
 const recurringFrequencyBlock = document.getElementById("recurring-frequency-block");
 const recurringFrequencyPicker = document.getElementById("recurring-frequency-picker");
+const recurringDayOfWeekBlock = document.getElementById("recurring-day-of-week-block");
+const recurringDayOfWeekPicker = document.getElementById("recurring-day-of-week-picker");
+const recurringDayOfMonthBlock = document.getElementById("recurring-day-of-month-block");
+const recurringDayOfMonthSelect = document.getElementById("recurring-day-of-month");
+const recurringTimeBlock = document.getElementById("recurring-time-block");
+const recurringTimeInput = document.getElementById("recurring-time");
 const sourceUrlInput = document.getElementById("source-url");
 const screenshotInput = document.getElementById("screenshot-input");
 const screenshotPreview = document.getElementById("screenshot-preview");
@@ -94,6 +116,12 @@ const editOutputTypePicker = document.getElementById("edit-output-type-picker");
 const editResearchModePicker = document.getElementById("edit-research-mode-picker");
 const editRecurringFrequencyBlock = document.getElementById("edit-recurring-frequency-block");
 const editRecurringFrequencyPicker = document.getElementById("edit-recurring-frequency-picker");
+const editRecurringDayOfWeekBlock = document.getElementById("edit-recurring-day-of-week-block");
+const editRecurringDayOfWeekPicker = document.getElementById("edit-recurring-day-of-week-picker");
+const editRecurringDayOfMonthBlock = document.getElementById("edit-recurring-day-of-month-block");
+const editRecurringDayOfMonthSelect = document.getElementById("edit-recurring-day-of-month");
+const editRecurringTimeBlock = document.getElementById("edit-recurring-time-block");
+const editRecurringTimeInput = document.getElementById("edit-recurring-time");
 const editError = document.getElementById("edit-error");
 
 let memos = [];
@@ -104,6 +132,7 @@ let formCategories = new Set();
 let formOutputTypes = new Set(DEFAULT_OUTPUT_TYPES);
 let formResearchMode = DEFAULT_RESEARCH_MODE;
 let formRecurringFrequency = DEFAULT_RECURRING_FREQUENCY;
+let formDayOfWeek = null;
 let formScreenshotFile = null;
 
 let currentMemoId = null;
@@ -112,6 +141,7 @@ let editCategoriesValue = new Set();
 let editOutputTypesValue = new Set(DEFAULT_OUTPUT_TYPES);
 let editResearchModeValue = DEFAULT_RESEARCH_MODE;
 let editRecurringFrequencyValue = DEFAULT_RECURRING_FREQUENCY;
+let editDayOfWeek = null;
 let editScreenshotFile = null;
 let editScreenshotRemove = false;
 
@@ -292,7 +322,7 @@ function renderResearchCard(memo) {
   if (memo.researchMode === "recurring") {
     const modeBadge = document.createElement("span");
     modeBadge.className = "badge tag-purple";
-    modeBadge.textContent = `定期・${RECURRING_FREQUENCY_LABELS[memo.recurringFrequency] || ""}`;
+    modeBadge.textContent = formatResearchModeBadge(memo);
     meta.appendChild(modeBadge);
   }
   for (const category of memo.categories || []) {
@@ -427,18 +457,82 @@ function renderSingleSelectChips(container, options, selectedValue, onSelect) {
 const RESEARCH_MODE_OPTIONS = RESEARCH_MODE_KEYS.map((k) => [k, RESEARCH_MODE_LABELS[k]]);
 const RECURRING_FREQUENCY_OPTIONS = RECURRING_FREQUENCY_KEYS.map((k) => [k, RECURRING_FREQUENCY_LABELS[k]]);
 
+function updateFrequencyDetailVisibility(mode, freq, dowBlock, domBlock, timeBlock) {
+  const isRecurring = mode === "recurring";
+  dowBlock.hidden = !(isRecurring && freq === "weekly");
+  domBlock.hidden = !(isRecurring && freq === "monthly");
+  timeBlock.hidden = !isRecurring;
+}
+
+function renderDayOfWeekChips(container, selectedValue, onSelect) {
+  container.innerHTML = "";
+  DAY_OF_WEEK_LABELS.forEach((label, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "category-btn" + (selectedValue === i ? " active" : "");
+    btn.textContent = label;
+    btn.addEventListener("click", () => onSelect(selectedValue === i ? null : i));
+    container.appendChild(btn);
+  });
+}
+
+function populateDayOfMonthSelect(selectEl) {
+  selectEl.innerHTML = "";
+  const noneOpt = document.createElement("option");
+  noneOpt.value = "";
+  noneOpt.textContent = "指定なし";
+  selectEl.appendChild(noneOpt);
+  for (let d = 1; d <= 31; d++) {
+    const opt = document.createElement("option");
+    opt.value = String(d);
+    opt.textContent = `${d}日`;
+    selectEl.appendChild(opt);
+  }
+}
+
+function renderFormDayOfWeekPicker() {
+  renderDayOfWeekChips(recurringDayOfWeekPicker, formDayOfWeek, (value) => {
+    formDayOfWeek = value;
+    renderFormDayOfWeekPicker();
+  });
+}
+
+function renderEditDayOfWeekPicker() {
+  renderDayOfWeekChips(editRecurringDayOfWeekPicker, editDayOfWeek, (value) => {
+    editDayOfWeek = value;
+    renderEditDayOfWeekPicker();
+  });
+}
+
 function renderResearchModePicker() {
   renderSingleSelectChips(researchModePicker, RESEARCH_MODE_OPTIONS, formResearchMode, (key) => {
     formResearchMode = key;
     renderResearchModePicker();
     recurringFrequencyBlock.hidden = formResearchMode !== "recurring";
+    updateFrequencyDetailVisibility(
+      formResearchMode,
+      formRecurringFrequency,
+      recurringDayOfWeekBlock,
+      recurringDayOfMonthBlock,
+      recurringTimeBlock
+    );
   });
 }
 
 function renderRecurringFrequencyPicker() {
   renderSingleSelectChips(recurringFrequencyPicker, RECURRING_FREQUENCY_OPTIONS, formRecurringFrequency, (key) => {
     formRecurringFrequency = key;
+    if (key !== "weekly") formDayOfWeek = null;
+    if (key !== "monthly") recurringDayOfMonthSelect.value = "";
     renderRecurringFrequencyPicker();
+    renderFormDayOfWeekPicker();
+    updateFrequencyDetailVisibility(
+      formResearchMode,
+      formRecurringFrequency,
+      recurringDayOfWeekBlock,
+      recurringDayOfMonthBlock,
+      recurringTimeBlock
+    );
   });
 }
 
@@ -447,13 +541,30 @@ function renderEditResearchModePicker() {
     editResearchModeValue = key;
     renderEditResearchModePicker();
     editRecurringFrequencyBlock.hidden = editResearchModeValue !== "recurring";
+    updateFrequencyDetailVisibility(
+      editResearchModeValue,
+      editRecurringFrequencyValue,
+      editRecurringDayOfWeekBlock,
+      editRecurringDayOfMonthBlock,
+      editRecurringTimeBlock
+    );
   });
 }
 
 function renderEditRecurringFrequencyPicker() {
   renderSingleSelectChips(editRecurringFrequencyPicker, RECURRING_FREQUENCY_OPTIONS, editRecurringFrequencyValue, (key) => {
     editRecurringFrequencyValue = key;
+    if (key !== "weekly") editDayOfWeek = null;
+    if (key !== "monthly") editRecurringDayOfMonthSelect.value = "";
     renderEditRecurringFrequencyPicker();
+    renderEditDayOfWeekPicker();
+    updateFrequencyDetailVisibility(
+      editResearchModeValue,
+      editRecurringFrequencyValue,
+      editRecurringDayOfWeekBlock,
+      editRecurringDayOfMonthBlock,
+      editRecurringTimeBlock
+    );
   });
 }
 
@@ -597,10 +708,7 @@ function showMemoView() {
 
   const modeBadge = document.createElement("span");
   modeBadge.className = "badge tag-purple";
-  modeBadge.textContent =
-    memo.researchMode === "recurring"
-      ? `定期・${RECURRING_FREQUENCY_LABELS[memo.recurringFrequency] || ""}`
-      : "単発";
+  modeBadge.textContent = formatResearchModeBadge(memo);
   memoViewBadges.appendChild(modeBadge);
 
   for (const category of memo.categories || []) {
@@ -668,12 +776,23 @@ memoEditBtn.addEventListener("click", () => {
   editOutputTypesValue = new Set(memo.outputTypes || DEFAULT_OUTPUT_TYPES);
   editResearchModeValue = memo.researchMode || DEFAULT_RESEARCH_MODE;
   editRecurringFrequencyValue = memo.recurringFrequency || DEFAULT_RECURRING_FREQUENCY;
+  editDayOfWeek = memo.recurringDayOfWeek ?? null;
+  editRecurringDayOfMonthSelect.value = memo.recurringDayOfMonth ? String(memo.recurringDayOfMonth) : "";
+  editRecurringTimeInput.value = memo.recurringTime || "";
   renderEditPriorityPicker();
   renderEditCategoryPicker();
   renderEditOutputTypePicker();
   renderEditResearchModePicker();
   renderEditRecurringFrequencyPicker();
+  renderEditDayOfWeekPicker();
   editRecurringFrequencyBlock.hidden = editResearchModeValue !== "recurring";
+  updateFrequencyDetailVisibility(
+    editResearchModeValue,
+    editRecurringFrequencyValue,
+    editRecurringDayOfWeekBlock,
+    editRecurringDayOfMonthBlock,
+    editRecurringTimeBlock
+  );
 
   editScreenshotFile = null;
   editScreenshotRemove = false;
@@ -705,6 +824,9 @@ memoEditForm.addEventListener("submit", async (e) => {
     outputTypes: [...editOutputTypesValue],
     researchMode: editResearchModeValue,
     recurringFrequency: editRecurringFrequencyValue,
+    recurringDayOfWeek: editDayOfWeek,
+    recurringDayOfMonth: editRecurringDayOfMonthSelect.value || null,
+    recurringTime: editRecurringTimeInput.value || null,
   };
 
   const res = await api(`/api/memos/${currentMemoId}`, {
@@ -772,6 +894,9 @@ form.addEventListener("submit", async (e) => {
     outputTypes: [...formOutputTypes],
     researchMode: formResearchMode,
     recurringFrequency: formRecurringFrequency,
+    recurringDayOfWeek: formDayOfWeek,
+    recurringDayOfMonth: recurringDayOfMonthSelect.value || null,
+    recurringTime: recurringTimeInput.value || null,
   };
 
   const res = await api("/api/memos", {
@@ -798,6 +923,9 @@ form.addEventListener("submit", async (e) => {
   formOutputTypes = new Set(DEFAULT_OUTPUT_TYPES);
   formResearchMode = DEFAULT_RESEARCH_MODE;
   formRecurringFrequency = DEFAULT_RECURRING_FREQUENCY;
+  formDayOfWeek = null;
+  recurringDayOfMonthSelect.value = "";
+  recurringTimeInput.value = "";
   formScreenshotFile = null;
   resetScreenshotField(screenshotInput, screenshotPreview, screenshotClearBtn);
   renderPriorityPicker();
@@ -805,7 +933,11 @@ form.addEventListener("submit", async (e) => {
   renderOutputTypePicker();
   renderResearchModePicker();
   renderRecurringFrequencyPicker();
+  renderFormDayOfWeekPicker();
   recurringFrequencyBlock.hidden = true;
+  recurringDayOfWeekBlock.hidden = true;
+  recurringDayOfMonthBlock.hidden = true;
+  recurringTimeBlock.hidden = true;
   addMemoModal.hidden = true;
   await fetchMemos();
 });
@@ -825,9 +957,12 @@ logoutBtn.addEventListener("click", async () => {
   window.location.href = "/login.html";
 });
 
+populateDayOfMonthSelect(recurringDayOfMonthSelect);
+populateDayOfMonthSelect(editRecurringDayOfMonthSelect);
 renderPriorityPicker();
 renderOutputTypePicker();
 renderResearchModePicker();
 renderRecurringFrequencyPicker();
+renderFormDayOfWeekPicker();
 fetchMemos();
 fetchCategories();

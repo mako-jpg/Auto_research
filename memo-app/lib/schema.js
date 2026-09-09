@@ -25,6 +25,27 @@ export function normalizeRecurringFrequency(input) {
   return VALID_RECURRING_FREQUENCIES.includes(input) ? input : "weekly";
 }
 
+export function normalizeDayOfWeek(input) {
+  if (input === undefined) return undefined;
+  if (input === null || input === "") return null;
+  const n = Number(input);
+  return Number.isInteger(n) && n >= 0 && n <= 6 ? n : null;
+}
+
+export function normalizeDayOfMonth(input) {
+  if (input === undefined) return undefined;
+  if (input === null || input === "") return null;
+  const n = Number(input);
+  return Number.isInteger(n) && n >= 1 && n <= 31 ? n : null;
+}
+
+export function normalizeRecurringTime(input) {
+  if (input === undefined) return undefined;
+  if (input === null || input === "") return null;
+  const trimmed = String(input).trim();
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(trimmed) ? trimmed : null;
+}
+
 export function normalizeSourceUrl(input) {
   if (input === undefined) return undefined;
   const trimmed = String(input || "").trim();

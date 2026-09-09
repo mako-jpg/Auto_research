@@ -93,6 +93,18 @@
           <span class="field-label">頻度</span>
           <div class="category-picker" id="recurring-frequency-picker"></div>
         </div>
+        <div class="field-block" id="recurring-day-of-week-block" hidden>
+          <span class="field-label">曜日（任意）</span>
+          <div class="category-picker" id="recurring-day-of-week-picker"></div>
+        </div>
+        <div class="field-block" id="recurring-day-of-month-block" hidden>
+          <span class="field-label">日にち（任意）</span>
+          <select id="recurring-day-of-month"></select>
+        </div>
+        <div class="field-block" id="recurring-time-block" hidden>
+          <span class="field-label">時刻（任意）</span>
+          <input type="time" id="recurring-time">
+        </div>
         <p id="form-error" class="error" hidden></p>
         <button type="submit">メモを追加</button>
       </form>
@@ -160,6 +172,18 @@
         <div class="field-block" id="edit-recurring-frequency-block" hidden>
           <span class="field-label">頻度</span>
           <div class="category-picker" id="edit-recurring-frequency-picker"></div>
+        </div>
+        <div class="field-block" id="edit-recurring-day-of-week-block" hidden>
+          <span class="field-label">曜日（任意）</span>
+          <div class="category-picker" id="edit-recurring-day-of-week-picker"></div>
+        </div>
+        <div class="field-block" id="edit-recurring-day-of-month-block" hidden>
+          <span class="field-label">日にち（任意）</span>
+          <select id="edit-recurring-day-of-month"></select>
+        </div>
+        <div class="field-block" id="edit-recurring-time-block" hidden>
+          <span class="field-label">時刻（任意）</span>
+          <input type="time" id="edit-recurring-time">
         </div>
         <p id="edit-error" class="error" hidden></p>
         <div class="memo-actions">

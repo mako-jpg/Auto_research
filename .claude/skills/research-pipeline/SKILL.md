@@ -19,7 +19,7 @@ description: Fetches pending entries (plus due recurring entries whose researchM
   - `PUT /api/memos/<id>/outputs/<type>` — 生成物の本文（Markdown）をアップロードする（`type` は `article` / `video` のみ。**`research` は含まない** — リサーチはパイプラインが常に内部的に行う下調べであり、Web UI上の生成物としては扱わない）。body に生ファイル内容をそのまま送る。メモアプリのWeb UIはこれを読んでその場で表示する。**定期メモの場合はクエリパラメータ `?date=YYYY-MM-DD` を付けて、その回の実行日付でアップロードする**（サーバー側で「最新」のコピーも自動的に同期されるので、通常のGET/日付なしのアップロードは常に最新を指す）。GETも同様に `?date=` で過去分を個別に取得できる。
   - `GET /api/memos/<id>/screenshot` — メモに添付されたスクリーンショット画像のバイナリを取得する（`memo.screenshot` が `true` のときだけ存在する）。
 - 各メモの `outputTypes` フィールド（`["article"]` や `["article","video"]` など）が、そのメモについて生成すべき項目を指定する。ユーザーがメモ作成・編集画面のボタンで選ぶ。**リサーチ（researcherエージェント）は選択肢に関係なく毎回必ず実行する**（記事・動画の元になる下調べのため）。
-- 各メモの `researchMode` フィールドが `"once"`（単発）か `"recurring"`（定期的）かを表す。定期的の場合 `recurringFrequency` が `"daily"`/`"weekly"`/`"monthly"` のいずれかで頻度を表す。詳しい扱いは下記手順を参照。
+- 各メモの `researchMode` フィールドが `"once"`（単発）か `"recurring"`（定期的）かを表す。定期的の場合 `recurringFrequency` が `"daily"`/`"weekly"`/`"monthly"` のいずれかで頻度を表す。加えて、`recurringFrequency: "weekly"` のとき `recurringDayOfWeek`（0=日曜〜6=土曜。任意、`null`なら指定なし）、`"monthly"` のとき `recurringDayOfMonth`（1〜31。任意、`null`なら指定なし）で曜日・日にちを、`recurringTime`（`"HH:MM"`。任意、`null`なら指定なし）で希望の実行時刻を指定できる。詳しい扱いは下記手順を参照。
 - 各メモは `sourceUrl`（参照URL。InstagramやX、YouTubeの投稿URLなど）と `screenshot`（スクリーンショット画像が添付されているかの真偽値）を持つ場合がある。どちらか片方だけ・両方・どちらも無し、いずれもあり得る。researcherエージェントへの入力に必ず含めること（下記手順参照）。
 
 ## 手順
@@ -33,7 +33,18 @@ description: Fetches pending entries (plus due recurring entries whose researchM
    ```
 3. 処理候補を集める（単発と定期を合わせて1つのプールにする）。
    - `status` が `"pending"` のメモ（`researchMode` が `once`/`recurring` どちらでも、初回処理としてここに入ってくる）。
-   - `status` が `"active"` かつ `researchMode` が `"recurring"` のメモのうち、**次の実行予定日を過ぎているもの**（＝期限が来た定期メモ）。判定方法: `last_processed_at` が `null`（まだ一度も処理されていないのに `active` になっている異常系）なら即対象。そうでなければ、`recurringFrequency` に応じた間隔（`daily`＝24時間、`weekly`＝7日、`monthly`＝30日、いずれも概算でよい）を `last_processed_at` に足した時刻が現在時刻より前なら対象。
+   - `status` が `"active"` かつ `researchMode` が `"recurring"` のメモのうち、**次の実行予定日を過ぎているもの**（＝期限が来た定期メモ）。判定は次の2段階（両方満たしたら対象）:
+     1. **経過時間チェック**（同じ実行が短期間に重複しないためのガード）: `last_processed_at` が `null`（まだ一度も処理されていない）なら即クリア。そうでなければ、`recurringFrequency` に応じた最小間隔（`daily`＝20時間、`weekly`＝6日、`monthly`＝27日、いずれもRoutineが6時間おきに動く前提の概算）以上経過していること。
+     2. **曜日・日にち・時刻チェック**（`recurringDayOfWeek`/`recurringDayOfMonth`/`recurringTime` が設定されている場合のみ、追加で満たす必要がある。`null`のものはチェックをスキップ＝いつでも良い）:
+        - `recurringFrequency: "weekly"` かつ `recurringDayOfWeek` が設定されている → 今日の曜日（0=日曜〜6=土曜）が一致すること。
+        - `recurringFrequency: "monthly"` かつ `recurringDayOfMonth` が設定されている → 今日の日にちが一致すること（その月にその日が存在しない場合は、その月の最終日を代わりに一致とみなす。例: 31日指定で2月なら28日/29日を最終実行日とする）。
+        - `recurringTime` が設定されている → 現在時刻がその時刻以降であること（例: `09:00` 指定なら、9時台以降のRoutine実行で初めて対象になる）。
+        時刻判定は日本時間（JST, UTC+9）を基準にする。厳密なcronではなく「その日の、その時刻以降に最初にRoutineが動いたとき」に処理される程度の精度でよい（Routine自体が6時間おきなので、それ以上の精度は出せない）。bashで今日のJST基準の曜日・日にち・時刻を得る例:
+        ```bash
+        TZ=Asia/Tokyo date +%u  # 曜日: 1=月〜7=日（recurringDayOfWeekの0=日曜始まりとはズレるので変換に注意。%uの7を0に読み替える）
+        TZ=Asia/Tokyo date +%d  # 日にち: 01〜31
+        TZ=Asia/Tokyo date +%H:%M  # 現在時刻
+        ```
    - 上記プール全体から **最大3件** まで（暴走・コスト膨張防止）。`priority` が大きい（5に近い）ものを優先し、次に「単発pendingは`created_at`が古い順」「定期activeは次の実行予定日を過ぎている度合いが大きい順」を目安に選ぶ。
 4. 処理対象がなければ、その旨（「単発の未処理も、期限が来た定期メモも無し」等）を短く報告して終了する（無理に何かを作らない）。
 5. 各対象メモについて、以下を順に行う。

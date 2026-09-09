@@ -43,8 +43,19 @@
     <div id="page-output" class="page output-page" hidden>
       <div class="output-page-header">
         <button type="button" id="output-back-btn" class="secondary" aria-label="戻る">← 戻る</button>
-        <h2 id="output-page-title"></h2>
       </div>
+      <article class="output-article">
+        <div class="output-article-tags" id="output-article-tags"></div>
+        <h1 class="output-article-title" id="output-page-title"></h1>
+        <div class="output-article-byline">
+          <div class="output-article-avatar" aria-hidden="true"><img src="/icons/icon-32.png" alt=""></div>
+          <div class="output-article-meta">
+            <span class="output-article-author">リサーチメモ</span>
+            <span class="output-article-date" id="output-article-date"></span>
+          </div>
+          <span class="output-article-draft-badge">下書き</span>
+        </div>
+      </article>
       <div class="output-tabs" id="output-tabs"></div>
       <div class="output-history" id="output-history" hidden></div>
       <div id="output-page-content" class="output-content"></div>

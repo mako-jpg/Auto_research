@@ -94,7 +94,9 @@ const researchGrid = document.getElementById("research-grid");
 const researchEmpty = document.getElementById("research-empty");
 
 const outputBackBtn = document.getElementById("output-back-btn");
+const outputArticleTags = document.getElementById("output-article-tags");
 const outputPageTitle = document.getElementById("output-page-title");
+const outputArticleDate = document.getElementById("output-article-date");
 const outputTabs = document.getElementById("output-tabs");
 const outputHistory = document.getElementById("output-history");
 const outputPageContent = document.getElementById("output-page-content");
@@ -192,6 +194,35 @@ function showPage(name) {
   }
 }
 
+function formatDisplayDate(value) {
+  if (!value) return "";
+  const date = new Date(value.length === 10 ? `${value}T00:00:00` : value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
+function updateOutputByline() {
+  const memo = currentOutputMemo;
+  outputArticleTags.innerHTML = "";
+  for (const category of memo.categories || []) {
+    const el = document.createElement("span");
+    el.className = `tag tag-${categoryTagColor(category)}`;
+    el.textContent = category;
+    outputArticleTags.appendChild(el);
+  }
+
+  let dateValue = currentOutputDate;
+  if (!dateValue && memo.researchMode === "recurring") {
+    const dates = (memo.history || [])
+      .filter((entry) => entry.outputs && entry.outputs[currentOutputType])
+      .map((entry) => entry.date)
+      .sort();
+    dateValue = dates[dates.length - 1] || null;
+  }
+  if (!dateValue) dateValue = memo.updated_at;
+  outputArticleDate.textContent = formatDisplayDate(dateValue);
+}
+
 function renderOutputTabs() {
   const types = availableOutputTypes(currentOutputMemo);
   outputTabs.innerHTML = "";
@@ -205,6 +236,7 @@ function renderOutputTabs() {
       currentOutputDate = null;
       renderOutputTabs();
       renderOutputHistory();
+      updateOutputByline();
       loadOutputContent();
     });
     outputTabs.appendChild(btn);
@@ -235,6 +267,7 @@ function renderOutputHistory() {
     btn.addEventListener("click", () => {
       currentOutputDate = date;
       renderOutputHistory();
+      updateOutputByline();
       loadOutputContent();
     });
     outputHistory.appendChild(btn);
@@ -275,6 +308,7 @@ function openOutputPage(memo, type) {
   outputPageTitle.textContent = memo.title;
   renderOutputTabs();
   renderOutputHistory();
+  updateOutputByline();
   showPage("output");
   loadOutputContent();
 }

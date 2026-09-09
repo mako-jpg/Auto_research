@@ -191,6 +191,11 @@ function showPage(name) {
     for (const tab of pageTabs.querySelectorAll(".bottom-nav-btn")) {
       tab.classList.toggle("active", tab.dataset.page === name);
     }
+    try {
+      localStorage.setItem("lastPage", name);
+    } catch {
+      // localStorage unavailable (private mode etc.) — page just won't be remembered
+    }
   }
 }
 
@@ -1119,5 +1124,10 @@ renderResearchModePicker();
 renderRecurringFrequencyPicker();
 renderFormDayOfWeekPicker();
 renderFormCustomCalendar();
+try {
+  if (localStorage.getItem("lastPage") === "research") showPage("research");
+} catch {
+  // localStorage unavailable (private mode etc.) — just falls back to the default memo page
+}
 fetchMemos();
 fetchCategories();

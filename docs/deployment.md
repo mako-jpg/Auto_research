@@ -7,7 +7,7 @@
 - Vercelプロジェクト: `auto-research-memo-app`（チーム: `mako-jpgs-projects`）
 - 本番URL: https://auto-research-memo-app.vercel.app
 - ルートディレクトリ: `memo-app`（モノレポ設定）
-- Production branch: `claude/research-article-automation-u3efhq`（このブランチにpushすると自動デプロイされる）
+- Production branch: `claude/amazing-ptolemy-5enln0`（このブランチにpushすると自動デプロイされる。旧`claude/research-article-automation-u3efhq`は現在使われていない）
 
 ## 必要な環境変数（Vercel Project Settings → Environment Variables）
 

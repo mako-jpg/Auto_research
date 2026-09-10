@@ -26,7 +26,7 @@ description: Fetches pending entries (plus due recurring entries whose researchM
 
 ## 手順
 
-0. リポジトリへの書き込み（push）権限がまだ無い状態で起動した場合（例: Routineがgit sourceを指定せずにセッションを起動した場合）は、まず `mcp__Claude_Code_Remote__add_repo`（`owner: "mako-jpg"`, `repo: "Auto_research"`, `access: "push"`）でpush可能な状態のクローンを取得し、`mcp__Claude_Code_Remote__register_repo_root` でルートディレクトリを登録してから以降の作業を行う。このリポジトリは `claude/research-article-automation-u3efhq` という1つのブランチのみで運用されている（デフォルトブランチ＝本番ブランチ）。この手順を飛ばすと、API経由の更新（メモのstatus更新・生成物アップロード）は成功するのに、最後のgit commit/pushだけが失敗する（push権限が無いため）という分かりにくい失敗の仕方をするので注意。
+0. リポジトリへの書き込み（push）権限がまだ無い状態で起動した場合（例: Routineがgit sourceを指定せずにセッションを起動した場合）は、`mcp__Claude_Code_Remote__add_repo`（`owner: "mako-jpg"`, `repo: "Auto_research"`, `access: "push"`）でpush可能な状態のクローンを取得し、`mcp__Claude_Code_Remote__register_repo_root` でルートディレクトリを登録してから以降の作業を行う（このツール自体が存在しない実行環境では、既にpush可能な状態でリポジトリがチェックアウト済みのはずなので、この手順は不要——セッションのブランチ設定に従う）。このリポジトリは `claude/amazing-ptolemy-5enln0` という1つのブランチのみで運用されている（デフォルトブランチ＝本番ブランチ。旧`claude/research-article-automation-u3efhq`は現在使われていない）。この手順が必要な環境でこれを飛ばすと、API経由の更新（メモのstatus更新・生成物アップロード）は成功するのに、最後のgit commit/pushだけが失敗する（push権限が無いため）という分かりにくい失敗の仕方をするので注意。
 
 1. `docs/deployment.md` を Read で読み、本番URLを確認する。
 2. Bash（curl）で `GET {本番URL}/api/memos` を叩き、メモ一覧を取得する。例:
@@ -150,7 +150,7 @@ description: Fetches pending entries (plus due recurring entries whose researchM
       （`obsidian/`はこのリポジトリ内の新しいトップレベルフォルダ。ユーザーはこのリポジトリをローカルにクローン/pullし、ObsidianのVault（またはVault内のサブフォルダ）としてこの`obsidian/`フォルダを使う想定。`git pull`するたびに新しく保存されたメモがObsidian側に反映される）。
    f. `obsidianSave`を`false`に戻したりはしない（ユーザーが明示的にトグルを外すまで保存対象のままにする。以後のパイプライン実行でも同じ`obsidian/<slug>.md`が最新内容で上書きされ続ける）。
 
-7. すべて処理し終えたら、`output/`配下の新規ファイル（`.md`のみ。**`screenshot.<拡張子>`はリポジトリにコミットしない** — 元データはVercel Blob側に既にあり、画像バイナリを毎回コミットするとリポジトリが肥大化するため、処理が終わったら削除するかgit addの対象から外す）と、手順6で書いた`obsidian/`配下の変更を git add / commit し、`git push origin claude/research-article-automation-u3efhq` で明示的にこのブランチへ push する（リポジトリ内にも下書きの記録を残すため。`memos.json`はAPI経由で既に更新済みなのでコミット対象ではない）。push が失敗した場合は理由（権限不足など）を最終報告に必ず含める。
+7. すべて処理し終えたら、`output/`配下の新規ファイル（`.md`のみ。**`screenshot.<拡張子>`はリポジトリにコミットしない** — 元データはVercel Blob側に既にあり、画像バイナリを毎回コミットするとリポジトリが肥大化するため、処理が終わったら削除するかgit addの対象から外す）と、手順6で書いた`obsidian/`配下の変更を git add / commit し、`git push origin claude/amazing-ptolemy-5enln0` で明示的にこのブランチへ push する（リポジトリ内にも下書きの記録を残すため。`memos.json`はAPI経由で既に更新済みなのでコミット対象ではない）。push が失敗した場合は理由（権限不足など）を最終報告に必ず含める。
 
 8. 最後に日本語で簡潔に報告する: 処理したメモのタイトル一覧（単発/定期/修正リクエストの別も添える）、それぞれ生成した出力ファイルへのパス（`research.md`は毎回生成、`article.md`/`video-structure.md`はそのメモの`outputTypes`で選ばれたものだけ）、修正リクエストを処理した場合はどこを直したかの一言（researcherの返答から拾う）、Obsidianへ同期したメモがあればそのタイトル一覧、そして必ず「これは下書きです。公開前に内容を確認してください」と伝える。
 

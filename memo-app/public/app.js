@@ -99,6 +99,7 @@ const outputPageTitle = document.getElementById("output-page-title");
 const outputArticleDate = document.getElementById("output-article-date");
 const outputObsidianToggle = document.getElementById("output-obsidian-toggle");
 const outputRevisionBtn = document.getElementById("output-revision-btn");
+const outputCopyBtn = document.getElementById("output-copy-btn");
 const outputTabs = document.getElementById("output-tabs");
 const outputHistory = document.getElementById("output-history");
 const outputPageContent = document.getElementById("output-page-content");
@@ -170,6 +171,7 @@ let editScreenshotRemove = false;
 let currentOutputMemo = null;
 let currentOutputType = null;
 let currentOutputDate = null;
+let currentOutputRawText = null;
 
 async function api(path, options = {}) {
   const res = await fetch(path, { ...options, credentials: "same-origin" });
@@ -337,6 +339,7 @@ function renderMarkdown(container, text) {
 
 async function loadOutputContent() {
   outputPageContent.textContent = "読み込み中…";
+  currentOutputRawText = null;
   try {
     const query = currentOutputDate ? `?date=${encodeURIComponent(currentOutputDate)}` : "";
     const res = await api(`/api/memos/${currentOutputMemo.id}/outputs/${currentOutputType}${query}`);
@@ -344,11 +347,47 @@ async function loadOutputContent() {
       outputPageContent.textContent = "まだ生成されていません。";
       return;
     }
-    renderMarkdown(outputPageContent, await res.text());
+    const text = await res.text();
+    currentOutputRawText = text;
+    renderMarkdown(outputPageContent, text);
   } catch {
     outputPageContent.textContent = "読み込みに失敗しました。";
   }
 }
+
+async function copyTextToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+outputCopyBtn.addEventListener("click", async () => {
+  if (!currentOutputRawText) return;
+  const ok = await copyTextToClipboard(currentOutputRawText);
+  const original = "コピー";
+  outputCopyBtn.textContent = ok ? "コピーしました！" : "コピーに失敗しました";
+  outputCopyBtn.classList.toggle("active", ok);
+  setTimeout(() => {
+    outputCopyBtn.textContent = original;
+    outputCopyBtn.classList.remove("active");
+  }, 1500);
+});
 
 function openOutputPage(memo, type) {
   const types = availableOutputTypes(memo);

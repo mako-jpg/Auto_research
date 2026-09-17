@@ -38,9 +38,10 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "PUT") {
-    // Vercel auto-parses the body to a string for any text/* Content-Type
-    // (e.g. text/markdown, text/plain), so req.body is already the content.
-    const body = typeof req.body === "string" ? req.body : "";
+    // Vercel only auto-parses the body to a string for an exact
+    // "text/plain" Content-Type; other text/* types (e.g. text/markdown)
+    // arrive as a raw Buffer, so handle both.
+    const body = typeof req.body === "string" ? req.body : Buffer.isBuffer(req.body) ? req.body.toString("utf-8") : "";
     if (!body.trim()) {
       res.status(400).json({ error: "request body must not be empty (send it with a text/* Content-Type)" });
       return;
